@@ -17,7 +17,7 @@ import { protect, adminOnly } from '../middleware/authMiddleware.js';
 
 router.post('/admin/users', protect, adminOnly, async (req, res) => {
   try {
-    const { name, email, password, role, cgpa } = req.body;
+    const { name, email, password, role, cgpa, usn, branch, batch, tenthMarks, twelfthMarks, activeBacklogs, historyOfBacklogs } = req.body;
     
     // Check if user already exists in the database
     const existingUser = await User.findOne({ email });
@@ -32,7 +32,8 @@ router.post('/admin/users', protect, adminOnly, async (req, res) => {
       email, 
       password: hashedPassword, 
       role: role || 'student', 
-      cgpa 
+      cgpa,
+      usn, branch, batch, tenthMarks, twelfthMarks, activeBacklogs, historyOfBacklogs
     });
     
     // Save the user to the database
@@ -40,6 +41,26 @@ router.post('/admin/users', protect, adminOnly, async (req, res) => {
 
     // Do NOT return a JWT token since the admin is the one creating it, just return success
     res.status(201).json({ message: 'User created successfully', user: { id: newUser._id, name, email, role: newUser.role } });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+/**
+ * @route PUT /api/auth/admin/users/:id/blacklist
+ * @desc Toggle blacklist status of a student
+ * @access Private/Admin
+ */
+router.put('/admin/users/:id/blacklist', protect, adminOnly, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.role !== 'student') return res.status(400).json({ message: 'Can only blacklist students' });
+
+    user.isBlacklisted = !user.isBlacklisted;
+    await user.save();
+
+    res.json({ message: `User ${user.isBlacklisted ? 'blacklisted' : 'whitelisted'} successfully`, isBlacklisted: user.isBlacklisted });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

@@ -27,6 +27,9 @@ import feedbackRoutes from './routes/feedbackRoutes.js';
 import copilotRoutes from './routes/copilotRoutes.js';
 import interviewRoutes from './routes/interviewRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
+import branchRoutes from './routes/branchRoutes.js';
+import batchRoutes from './routes/batchRoutes.js';
+import companyRoutes from './routes/companyRoutes.js';
 
 // Basic health check route
 app.get('/api/health', (req, res) => {
@@ -47,6 +50,9 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/copilot', copilotRoutes);
 app.use('/api/interviews', interviewRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/branches', branchRoutes);
+app.use('/api/batches', batchRoutes);
+app.use('/api/companies', companyRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

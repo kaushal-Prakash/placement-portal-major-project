@@ -46,6 +46,10 @@ router.post('/:jobId', protect, async (req, res) => {
       return res.status(403).json({ message: ruleEvaluation.reason });
     }
 
+    if (user.isBlacklisted) {
+      return res.status(403).json({ message: 'You are blacklisted from applying to jobs.' });
+    }
+
     // 3. Connect to AI Microservice for parsing and matching
     let matchScore = null;
 

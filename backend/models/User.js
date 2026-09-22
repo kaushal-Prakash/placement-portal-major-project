@@ -17,7 +17,8 @@ const userSchema = new mongoose.Schema({
   skills: [{ type: String }], // Extracted from resume
   resumeUrl: { type: String, default: null }, // Link to stored PDF
   isPlaced: { type: Boolean, default: false },
-  placedJob: { type: mongoose.Schema.Types.ObjectId, ref: 'Job', default: null }
+  placedJob: { type: mongoose.Schema.Types.ObjectId, ref: 'Job', default: null },
+  isBlacklisted: { type: Boolean, default: false }
 }, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);

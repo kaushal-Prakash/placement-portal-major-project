@@ -8,6 +8,9 @@ export default function AdminDashboard() {
   const [jobs, setJobs] = useState([]);
   const [applications, setApplications] = useState({});
   const [viewingJobId, setViewingJobId] = useState(null);
+  const [activeTab, setActiveTab] = useState("jobs"); // 'jobs', 'branches'
+  const [branches, setBranches] = useState([]);
+  const [newBranch, setNewBranch] = useState({ name: "", code: "" });
   
   const [formData, setFormData] = useState({
     title: "",
@@ -41,7 +44,50 @@ export default function AdminDashboard() {
     
     setUser(parsedUser);
     fetchJobs();
+    fetchBranches();
   }, []);
+
+  const fetchBranches = async () => {
+    const token = localStorage.getItem("token");
+    try {
+      const res = await fetch("http://localhost:5001/api/branches", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) setBranches(await res.json());
+    } catch(err) { console.error(err); }
+  };
+
+  const handleCreateBranch = async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem("token");
+    try {
+      const res = await fetch("http://localhost:5001/api/branches", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(newBranch),
+      });
+      if (res.ok) {
+        setNewBranch({ name: "", code: "" });
+        fetchBranches();
+        alert("Branch created successfully!");
+      } else {
+        let errorMsg = "Failed to create branch";
+        try {
+          const data = await res.json();
+          errorMsg = data.message || errorMsg;
+        } catch(e) {
+          errorMsg = "Backend route not found. Did you restart the backend server?";
+        }
+        alert(errorMsg);
+      }
+    } catch(err) { 
+      console.error(err); 
+      alert("Error creating branch: Could not connect to backend.");
+    }
+  };
 
   const fetchJobs = () => {
     fetch("http://localhost:5001/api/jobs")
@@ -171,6 +217,18 @@ export default function AdminDashboard() {
         </button>
       </div>
 
+      <div className="max-w-6xl mx-auto mb-6 flex gap-4 border-b">
+        <button 
+          onClick={() => setActiveTab('jobs')}
+          className={`px-4 py-2 font-medium ${activeTab === 'jobs' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'}`}
+        >Jobs & Applications</button>
+        <button 
+          onClick={() => setActiveTab('branches')}
+          className={`px-4 py-2 font-medium ${activeTab === 'branches' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'}`}
+        >Branches</button>
+      </div>
+
+      {activeTab === 'jobs' && (
       <main className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Post a Job Form */}
@@ -376,6 +434,35 @@ export default function AdminDashboard() {
         </div>
 
       </main>
+      )}
+
+      {activeTab === 'branches' && (
+        <main className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <h2 className="text-lg font-semibold mb-4">Add Branch</h2>
+              <form onSubmit={handleCreateBranch} className="flex flex-col gap-3">
+                <input type="text" placeholder="Branch Name (e.g. Computer Science)" required className="border p-2 rounded focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={newBranch.name} onChange={e => setNewBranch({...newBranch, name: e.target.value})} />
+                <input type="text" placeholder="Branch Code (e.g. CSE)" required className="border p-2 rounded focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={newBranch.code} onChange={e => setNewBranch({...newBranch, code: e.target.value})} />
+                <button type="submit" className="mt-2 w-full py-2.5 rounded-lg bg-[#8b9a6e] hover:bg-[#7b8a5e] text-white font-medium transition-colors cursor-pointer">
+                  Create Branch
+                </button>
+              </form>
+            </div>
+          </div>
+          
+          <h2 className="text-xl font-semibold mb-4">All Branches</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {branches.map(b => (
+              <div key={b._id} onClick={() => router.push(`/admin/branch/${b._id}`)} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition">
+                <h3 className="text-xl font-bold text-gray-800">{b.name}</h3>
+                <p className="text-gray-500 font-medium">{b.code}</p>
+                <div className="mt-4 text-sm text-primary font-medium flex items-center gap-1">Manage Students &rarr;</div>
+              </div>
+            ))}
+          </div>
+        </main>
+      )}
     </div>
   );
 }
