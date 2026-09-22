@@ -50,6 +50,24 @@ router.get('/:id/students', protect, adminOnly, async (req, res) => {
 });
 
 /**
+ * @route GET /api/branches/:branchId/batch/:batchId/students
+ * @desc Get all students for a specific branch and batch
+ * @access Private/Admin
+ */
+router.get('/:branchId/batch/:batchId/students', protect, adminOnly, async (req, res) => {
+  try {
+    const students = await User.find({ 
+      branch: req.params.branchId, 
+      batch: req.params.batchId, 
+      role: 'student' 
+    });
+    res.json(students);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+/**
  * @route GET /api/branches/:id
  * @desc Get single branch details
  * @access Private/Admin

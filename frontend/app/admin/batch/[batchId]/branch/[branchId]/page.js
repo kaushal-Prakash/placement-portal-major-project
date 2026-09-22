@@ -2,12 +2,14 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 
-export default function BranchManagement() {
+export default function StudentRoster() {
   const router = useRouter();
   const params = useParams();
-  const branchId = params.id;
+  const batchId = params.batchId;
+  const branchId = params.branchId;
 
   const [branch, setBranch] = useState(null);
+  const [batch, setBatch] = useState(null);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -22,9 +24,20 @@ export default function BranchManagement() {
       router.push("/login");
       return;
     }
+    fetchBatchDetails();
     fetchBranchDetails();
     fetchStudents();
-  }, [branchId]);
+  }, [batchId, branchId]);
+
+  const fetchBatchDetails = async () => {
+    const token = localStorage.getItem("token");
+    try {
+      const res = await fetch(`http://localhost:5001/api/batches/${batchId}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) setBatch(await res.json());
+    } catch (err) { console.error(err); }
+  };
 
   const fetchBranchDetails = async () => {
     const token = localStorage.getItem("token");
@@ -39,7 +52,7 @@ export default function BranchManagement() {
   const fetchStudents = async () => {
     const token = localStorage.getItem("token");
     try {
-      const res = await fetch(`http://localhost:5001/api/branches/${branchId}/students`, {
+      const res = await fetch(`http://localhost:5001/api/branches/${branchId}/batch/${batchId}/students`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -66,6 +79,7 @@ export default function BranchManagement() {
           ...studentData,
           role: "student",
           branch: branchId,
+          batch: batchId,
           cgpa: parseFloat(studentData.cgpa) || 0,
           tenthMarks: parseFloat(studentData.tenthMarks) || 0,
           twelfthMarks: parseFloat(studentData.twelfthMarks) || 0,
@@ -107,15 +121,15 @@ export default function BranchManagement() {
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  if (!branch) return <div className="min-h-screen flex items-center justify-center">Branch not found</div>;
+  if (!branch || !batch) return <div className="min-h-screen flex items-center justify-center">Resource not found</div>;
 
   return (
     <div className="min-h-screen bg-gray-50/50 p-6 sm:p-8">
       <div className="max-w-6xl mx-auto flex justify-between items-center mb-8">
         <div>
-          <button onClick={() => router.push('/admin')} className="text-sm text-gray-500 hover:text-gray-900 mb-2">&larr; Back to Admin</button>
+          <button onClick={() => router.push(`/admin/batch/${batchId}`)} className="text-sm text-gray-500 hover:text-gray-900 mb-2">&larr; Back to Batch {batch.year}</button>
           <h1 className="text-2xl font-poppins font-bold text-gray-900">{branch.name} ({branch.code})</h1>
-          <p className="text-gray-600 text-sm">Manage students for this branch</p>
+          <p className="text-gray-600 text-sm">Students of Batch {batch.year}</p>
         </div>
       </div>
 
@@ -125,20 +139,20 @@ export default function BranchManagement() {
         <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-fit">
           <h2 className="text-xl font-poppins font-semibold text-gray-800 mb-4">Add Student</h2>
           <form onSubmit={handleAddStudent} className="flex flex-col gap-3">
-            <input type="text" placeholder="USN" required className="border p-2 rounded text-sm" value={studentData.usn} onChange={e => setStudentData({...studentData, usn: e.target.value})} />
-            <input type="text" placeholder="Full Name" required className="border p-2 rounded text-sm" value={studentData.name} onChange={e => setStudentData({...studentData, name: e.target.value})} />
-            <input type="email" placeholder="Email" required className="border p-2 rounded text-sm" value={studentData.email} onChange={e => setStudentData({...studentData, email: e.target.value})} />
-            <input type="password" placeholder="Password" required className="border p-2 rounded text-sm" value={studentData.password} onChange={e => setStudentData({...studentData, password: e.target.value})} />
+            <input type="text" placeholder="USN" required className="border p-2 rounded text-sm focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={studentData.usn} onChange={e => setStudentData({...studentData, usn: e.target.value})} />
+            <input type="text" placeholder="Full Name" required className="border p-2 rounded text-sm focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={studentData.name} onChange={e => setStudentData({...studentData, name: e.target.value})} />
+            <input type="email" placeholder="Email" required className="border p-2 rounded text-sm focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={studentData.email} onChange={e => setStudentData({...studentData, email: e.target.value})} />
+            <input type="password" placeholder="Password" required className="border p-2 rounded text-sm focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={studentData.password} onChange={e => setStudentData({...studentData, password: e.target.value})} />
             
             <div className="grid grid-cols-2 gap-2">
-              <input type="number" step="0.01" placeholder="CGPA" required className="border p-2 rounded text-sm" value={studentData.cgpa} onChange={e => setStudentData({...studentData, cgpa: e.target.value})} />
-              <input type="number" step="0.1" placeholder="10th %" className="border p-2 rounded text-sm" value={studentData.tenthMarks} onChange={e => setStudentData({...studentData, tenthMarks: e.target.value})} />
-              <input type="number" step="0.1" placeholder="12th %" className="border p-2 rounded text-sm" value={studentData.twelfthMarks} onChange={e => setStudentData({...studentData, twelfthMarks: e.target.value})} />
-              <input type="number" placeholder="Active Backlogs" className="border p-2 rounded text-sm" value={studentData.activeBacklogs} onChange={e => setStudentData({...studentData, activeBacklogs: e.target.value})} />
+              <input type="number" step="0.01" placeholder="CGPA" required className="border p-2 rounded text-sm focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={studentData.cgpa} onChange={e => setStudentData({...studentData, cgpa: e.target.value})} />
+              <input type="number" step="0.1" placeholder="10th %" className="border p-2 rounded text-sm focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={studentData.tenthMarks} onChange={e => setStudentData({...studentData, tenthMarks: e.target.value})} />
+              <input type="number" step="0.1" placeholder="12th %" className="border p-2 rounded text-sm focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={studentData.twelfthMarks} onChange={e => setStudentData({...studentData, twelfthMarks: e.target.value})} />
+              <input type="number" placeholder="Active Backlogs" className="border p-2 rounded text-sm focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={studentData.activeBacklogs} onChange={e => setStudentData({...studentData, activeBacklogs: e.target.value})} />
             </div>
 
-            <button type="submit" className="mt-2 w-full py-2 rounded-lg bg-primary hover:bg-primary/90 text-white font-medium transition-colors">
-              Add Student
+            <button type="submit" className="mt-2 w-full py-2.5 rounded-lg bg-[#8b9a6e] hover:bg-[#7b8a5e] text-white font-medium transition-colors cursor-pointer">
+              Add Student to {branch.code}
             </button>
           </form>
         </div>

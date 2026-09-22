@@ -8,9 +8,11 @@ export default function AdminDashboard() {
   const [jobs, setJobs] = useState([]);
   const [applications, setApplications] = useState({});
   const [viewingJobId, setViewingJobId] = useState(null);
-  const [activeTab, setActiveTab] = useState("jobs"); // 'jobs', 'branches'
+  const [activeTab, setActiveTab] = useState("jobs"); // 'jobs', 'branches', 'batches'
   const [branches, setBranches] = useState([]);
   const [newBranch, setNewBranch] = useState({ name: "", code: "" });
+  const [batches, setBatches] = useState([]);
+  const [newBatch, setNewBatch] = useState({ year: new Date().getFullYear() + 1, isActive: true });
   
   const [formData, setFormData] = useState({
     title: "",
@@ -45,7 +47,44 @@ export default function AdminDashboard() {
     setUser(parsedUser);
     fetchJobs();
     fetchBranches();
+    fetchBatches();
   }, []);
+
+  const fetchBatches = async () => {
+    const token = localStorage.getItem("token");
+    try {
+      const res = await fetch("http://localhost:5001/api/batches", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) setBatches(await res.json());
+    } catch(err) { console.error(err); }
+  };
+
+  const handleCreateBatch = async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem("token");
+    try {
+      const res = await fetch("http://localhost:5001/api/batches", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(newBatch),
+      });
+      if (res.ok) {
+        setNewBatch({ year: new Date().getFullYear() + 1, isActive: true });
+        fetchBatches();
+        alert("Batch created successfully!");
+      } else {
+        const data = await res.json();
+        alert(data.message || "Failed to create batch");
+      }
+    } catch(err) { 
+      console.error(err); 
+      alert("Error creating batch");
+    }
+  };
 
   const fetchBranches = async () => {
     const token = localStorage.getItem("token");
@@ -223,9 +262,13 @@ export default function AdminDashboard() {
           className={`px-4 py-2 font-medium ${activeTab === 'jobs' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'}`}
         >Jobs & Applications</button>
         <button 
+          onClick={() => setActiveTab('batches')}
+          className={`px-4 py-2 font-medium ${activeTab === 'batches' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'}`}
+        >Batches (Students)</button>
+        <button 
           onClick={() => setActiveTab('branches')}
           className={`px-4 py-2 font-medium ${activeTab === 'branches' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'}`}
-        >Branches</button>
+        >Global Branches</button>
       </div>
 
       {activeTab === 'jobs' && (
@@ -440,7 +483,7 @@ export default function AdminDashboard() {
         <main className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <h2 className="text-lg font-semibold mb-4">Add Branch</h2>
+              <h2 className="text-lg font-semibold mb-4">Add Global Branch</h2>
               <form onSubmit={handleCreateBranch} className="flex flex-col gap-3">
                 <input type="text" placeholder="Branch Name (e.g. Computer Science)" required className="border p-2 rounded focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={newBranch.name} onChange={e => setNewBranch({...newBranch, name: e.target.value})} />
                 <input type="text" placeholder="Branch Code (e.g. CSE)" required className="border p-2 rounded focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={newBranch.code} onChange={e => setNewBranch({...newBranch, code: e.target.value})} />
@@ -451,13 +494,45 @@ export default function AdminDashboard() {
             </div>
           </div>
           
-          <h2 className="text-xl font-semibold mb-4">All Branches</h2>
+          <h2 className="text-xl font-semibold mb-4">All Global Branches</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {branches.map(b => (
-              <div key={b._id} onClick={() => router.push(`/admin/branch/${b._id}`)} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition">
+              <div key={b._id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
                 <h3 className="text-xl font-bold text-gray-800">{b.name}</h3>
                 <p className="text-gray-500 font-medium">{b.code}</p>
-                <div className="mt-4 text-sm text-primary font-medium flex items-center gap-1">Manage Students &rarr;</div>
+              </div>
+            ))}
+          </div>
+        </main>
+      )}
+
+      {activeTab === 'batches' && (
+        <main className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <h2 className="text-lg font-semibold mb-4">Create Batch</h2>
+              <form onSubmit={handleCreateBatch} className="flex flex-col gap-3">
+                <input type="number" placeholder="Graduation Year (e.g. 2026)" required className="border p-2 rounded focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={newBatch.year} onChange={e => setNewBatch({...newBatch, year: e.target.value})} />
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input type="checkbox" checked={newBatch.isActive} onChange={e => setNewBatch({...newBatch, isActive: e.target.checked})} />
+                  Active Batch
+                </label>
+                <button type="submit" className="mt-2 w-full py-2.5 rounded-lg bg-[#8b9a6e] hover:bg-[#7b8a5e] text-white font-medium transition-colors cursor-pointer">
+                  Create Batch
+                </button>
+              </form>
+            </div>
+          </div>
+          
+          <h2 className="text-xl font-semibold mb-4">Manage Students By Batch</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {batches.map(b => (
+              <div key={b._id} onClick={() => router.push(`/admin/batch/${b._id}`)} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition">
+                <h3 className="text-2xl font-bold text-gray-800">Batch {b.year}</h3>
+                <p className={`font-medium ${b.isActive ? 'text-green-600' : 'text-gray-500'}`}>
+                  {b.isActive ? 'Active' : 'Inactive'}
+                </p>
+                <div className="mt-4 text-sm text-primary font-medium flex items-center gap-1">Manage Branches &rarr;</div>
               </div>
             ))}
           </div>

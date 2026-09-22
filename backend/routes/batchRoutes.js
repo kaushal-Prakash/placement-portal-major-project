@@ -34,4 +34,19 @@ router.post('/', protect, adminOnly, async (req, res) => {
   }
 });
 
+/**
+ * @route GET /api/batches/:id
+ * @desc Get single batch details
+ * @access Private/Admin
+ */
+router.get('/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const batch = await Batch.findById(req.params.id);
+    if (!batch) return res.status(404).json({ message: 'Batch not found' });
+    res.json(batch);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 export default router;
