@@ -181,6 +181,50 @@ Instructions:
         print(f"LLM Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+class ChatRequest(BaseModel):
+    resume_text: str
+    user_message: str
+    chat_history: list[dict] = []
+
+@app.post("/api/copilot/chat")
+async def copilot_chat(request: ChatRequest):
+    try:
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+
+        api_key = os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            return {"reply": "Sorry, the GOOGLE_API_KEY is not configured on the AI server."}
+
+        llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro", google_api_key=api_key)
+
+        system_prompt = f"""You are an AI Career Copilot for a student.
+You are here to help them prepare for placements, suggest what to study, and give career advice.
+Here is the student's resume:
+{request.resume_text}
+
+Instructions:
+1. Provide personalized career advice based on their resume.
+2. If they ask what to study for a specific role or company, identify their skill gaps based on the resume and guide them.
+3. Keep your answers concise, encouraging, and highly technical.
+"""
+        messages = [SystemMessage(content=system_prompt)]
+        
+        for msg in request.chat_history:
+            if msg["role"] == "user":
+                messages.append(HumanMessage(content=msg["content"]))
+            elif msg["role"] == "assistant":
+                messages.append(AIMessage(content=msg["content"]))
+
+        messages.append(HumanMessage(content=request.user_message))
+
+        response = llm.invoke(messages)
+        return {"reply": response.content}
+
+    except Exception as e:
+        print(f"LLM Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

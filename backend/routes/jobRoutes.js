@@ -89,14 +89,23 @@ router.get('/smart-feed', protect, async (req, res) => {
 // POST a new job (admin only)
 router.post('/', protect, adminOnly, async (req, res) => {
   try {
-    const { title, company, description, requiredCgpa, requiredSkills } = req.body;
+    let { title, company, description, requiredCgpa, requiredSkills, driveLink } = req.body;
     
+    // Find or create company if company name is passed
+    const mongoose = (await import('mongoose')).default;
+    let companyDoc = await mongoose.model('Company').findOne({ name: company });
+    if (!companyDoc) {
+      companyDoc = await mongoose.model('Company').create({ name: company });
+    }
+
     const newJob = new Job({
       title,
-      company,
+      company: companyDoc._id,
       description,
-      requiredCgpa,
-      requiredSkills
+      minCgpa: requiredCgpa || 0,
+      requirements: requiredSkills,
+      driveLink,
+      ctc: 0 // Default CTC
     });
 
     const createdJob = await newJob.save();

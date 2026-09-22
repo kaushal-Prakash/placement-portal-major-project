@@ -3,3 +3,4 @@ node_modules
 .next
 backend/uploads/*
 !backend/uploads/.gitkeep
+/temp

@@ -88,4 +88,68 @@ router.post('/mock-interview', protect, async (req, res) => {
   }
 });
 
+/**
+ * @route POST /api/copilot/chat
+ * @desc General career copilot chat
+ * @access Private (Student only)
+ */
+router.post('/chat', protect, async (req, res) => {
+  try {
+    const { message, chatHistory } = req.body;
+    const userId = req.user.id;
+
+    if (req.user.role !== 'student') {
+      return res.status(403).json({ message: 'Only students can use the copilot' });
+    }
+
+    const user = await User.findById(userId);
+    let resumeText = "";
+    
+    // Fetch Resume Text if available
+    if (user.resumeUrl) {
+      try {
+        const filePath = path.join(process.cwd(), user.resumeUrl);
+        const formData = new FormData();
+        formData.append('file', fs.createReadStream(filePath));
+
+        const parseRes = await fetch('http://localhost:8000/api/parse-pdf', {
+          method: 'POST',
+          body: formData,
+        });
+        if (parseRes.ok) {
+          const parseData = await parseRes.json();
+          resumeText = parseData.parsed_text;
+        }
+      } catch (e) {
+        console.error("Resume parsing error in copilot", e);
+      }
+    }
+
+    // Call AI Microservice
+    const aiReqBody = {
+      resume_text: resumeText || "No resume uploaded yet.",
+      user_message: message,
+      chat_history: chatHistory || []
+    };
+
+    const aiRes = await fetch('http://localhost:8000/api/copilot/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(aiReqBody)
+    });
+
+    if (!aiRes.ok) {
+      const errorText = await aiRes.text();
+      return res.status(500).json({ message: 'AI Service Error', details: errorText });
+    }
+
+    const aiData = await aiRes.json();
+    res.json({ reply: aiData.reply });
+
+  } catch (error) {
+    console.error("Copilot chat route error:", error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 export default router;

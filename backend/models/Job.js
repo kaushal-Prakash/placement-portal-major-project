@@ -9,8 +9,9 @@ const jobSchema = new mongoose.Schema({
   maxBacklogs: { type: Number, default: 0 },
   allowedBranches: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }],
   allowedBatches: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Batch' }],
-  ctc: { type: Number, required: true }, // CTC in LPA
-  status: { type: String, enum: ['open', 'closed'], default: 'open' }
+  ctc: { type: Number, required: true, default: 0 }, // CTC in LPA
+  status: { type: String, enum: ['open', 'closed'], default: 'open' },
+  driveLink: { type: String }
 }, { timestamps: true });
 
 const Job = mongoose.model('Job', jobSchema);

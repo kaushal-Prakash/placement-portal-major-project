@@ -17,6 +17,27 @@ export default function StudentRoster() {
     name: "", email: "", password: "", usn: "", cgpa: "",
     tenthMarks: "", twelfthMarks: "", activeBacklogs: 0, historyOfBacklogs: 0
   });
+  const [editingStudentId, setEditingStudentId] = useState(null);
+
+  const resetForm = () => {
+    setStudentData({ name: "", email: "", password: "", usn: "", cgpa: "", tenthMarks: "", twelfthMarks: "", activeBacklogs: 0, historyOfBacklogs: 0 });
+    setEditingStudentId(null);
+  };
+
+  const handleEditClick = (student) => {
+    setStudentData({
+      name: student.name || "",
+      email: student.email || "",
+      password: "", // Keep blank, backend will ignore if we don't pass it in the PUT request (actually PUT handles name/email/cgpa/usn/marks)
+      usn: student.usn || "",
+      cgpa: student.cgpa || "",
+      tenthMarks: student.tenthMarks || "",
+      twelfthMarks: student.twelfthMarks || "",
+      activeBacklogs: student.activeBacklogs || 0,
+      historyOfBacklogs: student.historyOfBacklogs || 0
+    });
+    setEditingStudentId(student._id);
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -65,40 +86,49 @@ export default function StudentRoster() {
     }
   };
 
-  const handleAddStudent = async (e) => {
+  const handleSaveStudent = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem("token");
+    const isEdit = !!editingStudentId;
+    const url = isEdit 
+      ? `http://localhost:5001/api/auth/admin/users/${editingStudentId}`
+      : "http://localhost:5001/api/auth/admin/users";
+
+    // Only send password if it's not empty, or if we are creating
+    const payload = {
+      ...studentData,
+      role: "student",
+      branch: branchId,
+      batch: batchId,
+      cgpa: parseFloat(studentData.cgpa) || 0,
+      tenthMarks: parseFloat(studentData.tenthMarks) || 0,
+      twelfthMarks: parseFloat(studentData.twelfthMarks) || 0,
+      activeBacklogs: parseInt(studentData.activeBacklogs) || 0,
+      historyOfBacklogs: parseInt(studentData.historyOfBacklogs) || 0,
+    };
+    if (isEdit && !payload.password) delete payload.password;
+
     try {
-      const res = await fetch("http://localhost:5001/api/auth/admin/users", {
-        method: "POST",
+      const res = await fetch(url, {
+        method: isEdit ? "PUT" : "POST",
         headers: { 
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({
-          ...studentData,
-          role: "student",
-          branch: branchId,
-          batch: batchId,
-          cgpa: parseFloat(studentData.cgpa) || 0,
-          tenthMarks: parseFloat(studentData.tenthMarks) || 0,
-          twelfthMarks: parseFloat(studentData.twelfthMarks) || 0,
-          activeBacklogs: parseInt(studentData.activeBacklogs) || 0,
-          historyOfBacklogs: parseInt(studentData.historyOfBacklogs) || 0,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
-        setStudentData({ name: "", email: "", password: "", usn: "", cgpa: "", tenthMarks: "", twelfthMarks: "", activeBacklogs: 0, historyOfBacklogs: 0 });
-        alert("Student added successfully!");
+        resetForm();
+        alert(isEdit ? "Student updated successfully!" : "Student added successfully!");
         fetchStudents();
       } else {
         const data = await res.json();
-        alert(data.message || "Failed to add student");
+        alert(data.message || `Failed to ${isEdit ? 'update' : 'add'} student`);
       }
     } catch (err) {
       console.error(err);
-      alert("Error adding student");
+      alert(`Error ${isEdit ? 'updating' : 'adding'} student`);
     }
   };
 
@@ -137,12 +167,19 @@ export default function StudentRoster() {
         
         {/* Add Student Form */}
         <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-fit">
-          <h2 className="text-xl font-poppins font-semibold text-gray-800 mb-4">Add Student</h2>
-          <form onSubmit={handleAddStudent} className="flex flex-col gap-3">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-poppins font-semibold text-gray-800">
+              {editingStudentId ? "Edit Student" : "Add Student"}
+            </h2>
+            {editingStudentId && (
+              <button onClick={resetForm} className="text-sm text-gray-500 hover:text-gray-800">Cancel</button>
+            )}
+          </div>
+          <form onSubmit={handleSaveStudent} className="flex flex-col gap-3">
             <input type="text" placeholder="USN" required className="border p-2 rounded text-sm focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={studentData.usn} onChange={e => setStudentData({...studentData, usn: e.target.value})} />
             <input type="text" placeholder="Full Name" required className="border p-2 rounded text-sm focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={studentData.name} onChange={e => setStudentData({...studentData, name: e.target.value})} />
             <input type="email" placeholder="Email" required className="border p-2 rounded text-sm focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={studentData.email} onChange={e => setStudentData({...studentData, email: e.target.value})} />
-            <input type="password" placeholder="Password" required className="border p-2 rounded text-sm focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={studentData.password} onChange={e => setStudentData({...studentData, password: e.target.value})} />
+            <input type="password" placeholder={editingStudentId ? "Leave blank to keep current" : "Password"} required={!editingStudentId} className="border p-2 rounded text-sm focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={studentData.password} onChange={e => setStudentData({...studentData, password: e.target.value})} />
             
             <div className="grid grid-cols-2 gap-2">
               <input type="number" step="0.01" placeholder="CGPA" required className="border p-2 rounded text-sm focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={studentData.cgpa} onChange={e => setStudentData({...studentData, cgpa: e.target.value})} />
@@ -152,7 +189,7 @@ export default function StudentRoster() {
             </div>
 
             <button type="submit" className="mt-2 w-full py-2.5 rounded-lg bg-[#8b9a6e] hover:bg-[#7b8a5e] text-white font-medium transition-colors cursor-pointer">
-              Add Student to {branch.code}
+              {editingStudentId ? "Save Changes" : `Add Student to ${branch.code}`}
             </button>
           </form>
         </div>
@@ -190,7 +227,13 @@ export default function StudentRoster() {
                           <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">Active</span>
                         )}
                       </td>
-                      <td className="px-4 py-2">
+                      <td className="px-4 py-2 flex gap-2">
+                        <button 
+                          onClick={() => handleEditClick(student)}
+                          className="text-xs px-3 py-1 rounded font-medium bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
+                        >
+                          Edit
+                        </button>
                         <button 
                           onClick={() => handleToggleBlacklist(student._id)}
                           className={`text-xs px-3 py-1 rounded font-medium ${student.isBlacklisted ? 'bg-gray-200 text-gray-800 hover:bg-gray-300' : 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'}`}

@@ -159,11 +159,15 @@ router.put('/:id/status', protect, adminOnly, async (req, res) => {
     application.status = status;
     await application.save();
 
-    // If placed, update user's isPlaced status
+    // If placed, update user's isPlaced status and currentCTC
     if (status === 'placed') {
       const user = await User.findById(application.user);
+      const job = await Job.findById(application.job); // fetch job to get CTC
       user.isPlaced = true;
       user.placedJob = application.job;
+      if (job && job.ctc) {
+        user.currentCTC = Math.max(user.currentCTC || 0, job.ctc);
+      }
       await user.save();
     }
 

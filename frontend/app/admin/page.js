@@ -130,7 +130,15 @@ export default function AdminDashboard() {
 
   const fetchJobs = () => {
     fetch("http://localhost:5001/api/jobs")
-      .then(res => res.json())
+      .then(async res => {
+        if (!res.ok) throw new Error("Failed to fetch");
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          return res.json();
+        } else {
+          throw new Error("Received non-JSON response from backend");
+        }
+      })
       .then(data => setJobs(data))
       .catch(err => console.error(err));
   };
@@ -295,6 +303,14 @@ export default function AdminDashboard() {
               />
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Drive Link (Google Drive, Notion, etc.)</label>
+              <input 
+                type="url" placeholder="https://..."
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary outline-none"
+                value={formData.driveLink || ""} onChange={e => setFormData({...formData, driveLink: e.target.value})}
+              />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
               <textarea 
                 required rows="3"
@@ -385,6 +401,11 @@ export default function AdminDashboard() {
                         </span>
                       ))}
                     </div>
+                    {job.driveLink && (
+                      <a href={job.driveLink} target="_blank" rel="noreferrer" className="text-sm text-indigo-600 hover:underline mb-3 block flex items-center gap-1">
+                        🔗 View Drive Link / Job Details
+                      </a>
+                    )}
                   </div>
                   <div className="text-right">
                     <span className="inline-block px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold mb-2">
