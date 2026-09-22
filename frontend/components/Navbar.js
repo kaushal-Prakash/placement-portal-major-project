@@ -53,9 +53,6 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center gap-8">
             <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-indigo-600 flex items-center justify-center text-white font-bold group-hover:shadow-lg transition-all shadow-md">
-                S
-              </div>
               <span className="font-poppins font-bold text-xl text-gray-900 tracking-tight">
                 Smart<span className="text-primary">Career</span>
               </span>
