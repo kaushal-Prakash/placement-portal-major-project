@@ -106,6 +106,60 @@ router.put('/admin/users/:id/blacklist', protect, adminOnly, async (req, res) =>
 });
 
 /**
+ * @route PUT /api/auth/profile
+ * @desc Update own profile (students can update CGPA, skills, backlogs)
+ * @access Private
+ */
+router.put('/profile', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const { cgpa, skills, activeBacklogs, historyOfBacklogs, tenthMarks, twelfthMarks } = req.body;
+
+    if (cgpa !== undefined) user.cgpa = cgpa;
+    if (skills !== undefined) user.skills = skills;
+    if (activeBacklogs !== undefined) user.activeBacklogs = activeBacklogs;
+    if (historyOfBacklogs !== undefined) user.historyOfBacklogs = historyOfBacklogs;
+    if (tenthMarks !== undefined) user.tenthMarks = tenthMarks;
+    if (twelfthMarks !== undefined) user.twelfthMarks = twelfthMarks;
+
+    await user.save();
+    await user.populate('branch batch');
+
+    res.json({ 
+      message: 'Profile updated successfully', 
+      user: { 
+        id: user._id, name: user.name, email: user.email, role: user.role, 
+        cgpa: user.cgpa, resumeUrl: user.resumeUrl, skills: user.skills,
+        activeBacklogs: user.activeBacklogs, historyOfBacklogs: user.historyOfBacklogs,
+        tenthMarks: user.tenthMarks, twelfthMarks: user.twelfthMarks,
+        branch: user.branch, batch: user.batch,
+        isPlaced: user.isPlaced, isBlacklisted: user.isBlacklisted,
+        currentCTC: user.currentCTC
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+/**
+ * @route GET /api/auth/me
+ * @desc Get current logged-in user's full profile
+ * @access Private
+ */
+router.get('/me', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).populate('branch batch').select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+/**
  * @route POST /api/auth/login
  * @desc Authenticate user & get token
  * @access Public
@@ -115,7 +169,7 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body;
     
     // Check if the user exists
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).populate('branch batch');
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     // Validate the password
@@ -125,8 +179,19 @@ router.post('/login', async (req, res) => {
     // Generate JWT token on successful login
     const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
     
-    // Return the token and user data
-    res.json({ token, user: { id: user._id, name: user.name, email, role: user.role, resumeUrl: user.resumeUrl, cgpa: user.cgpa } });
+    // Return the token and full user data
+    res.json({ 
+      token, 
+      user: { 
+        id: user._id, name: user.name, email, role: user.role, 
+        resumeUrl: user.resumeUrl, cgpa: user.cgpa, skills: user.skills,
+        activeBacklogs: user.activeBacklogs, historyOfBacklogs: user.historyOfBacklogs,
+        tenthMarks: user.tenthMarks, twelfthMarks: user.twelfthMarks,
+        branch: user.branch, batch: user.batch,
+        isPlaced: user.isPlaced, isBlacklisted: user.isBlacklisted,
+        currentCTC: user.currentCTC, usn: user.usn
+      } 
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

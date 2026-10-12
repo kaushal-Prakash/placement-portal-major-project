@@ -248,37 +248,71 @@ export default function AdminDashboard() {
     }
   };
 
-  if (!user) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    router.push("/login");
+  };
+
+  if (!user) return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="w-8 h-8 border-2 border-[#8b9a6e] border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50/50 p-6 sm:p-8">
-      <div className="max-w-6xl mx-auto flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-2xl font-poppins font-bold text-gray-900">Admin Console</h1>
-          <p className="text-gray-600 text-sm">Manage jobs, applications, and scheduling for {user.name}</p>
+    <div className="min-h-screen bg-gray-50/50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-30">
+        <div className="max-w-6xl mx-auto px-6 sm:px-8 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#8b9a6e] to-[#5b6a3e] flex items-center justify-center text-white font-bold text-lg shadow-md">
+              A
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Admin Console</h1>
+              <p className="text-gray-500 text-xs">Logged in as {user.name}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => router.push("/admin/analytics")}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#8b9a6e] to-[#5b6a3e] text-white text-sm font-semibold hover:opacity-90 transition-all shadow-md flex items-center gap-2"
+            >
+              📊 Analytics
+            </button>
+            <button 
+              onClick={handleLogout}
+              className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-all"
+            >
+              Logout
+            </button>
+          </div>
         </div>
-        <button 
-          onClick={() => router.push("/admin/analytics")}
-          className="px-5 py-2.5 rounded-xl bg-gray-900 text-white font-medium hover:bg-gray-800 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
-        >
-          <span>📊</span> View Analytics
-        </button>
-      </div>
 
-      <div className="max-w-6xl mx-auto mb-6 flex gap-4 border-b">
-        <button 
-          onClick={() => setActiveTab('jobs')}
-          className={`px-4 py-2 font-medium ${activeTab === 'jobs' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'}`}
-        >Jobs & Applications</button>
-        <button 
-          onClick={() => setActiveTab('batches')}
-          className={`px-4 py-2 font-medium ${activeTab === 'batches' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'}`}
-        >Batches (Students)</button>
-        <button 
-          onClick={() => setActiveTab('branches')}
-          className={`px-4 py-2 font-medium ${activeTab === 'branches' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'}`}
-        >Global Branches</button>
-      </div>
+        {/* Tabs */}
+        <div className="max-w-6xl mx-auto px-6 sm:px-8 flex gap-1">
+          {[
+            { key: 'jobs', label: '📋 Jobs & Applications' },
+            { key: 'batches', label: '🎓 Batches & Students' },
+            { key: 'branches', label: '🏫 Global Branches' }
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-5 py-3 text-sm font-semibold border-b-2 transition-all ${
+                activeTab === tab.key 
+                  ? 'border-[#8b9a6e] text-[#8b9a6e]' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-200'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      <div className="p-6 sm:p-8">
 
       {activeTab === 'jobs' && (
       <main className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -630,6 +664,7 @@ export default function AdminDashboard() {
           </div>
         </main>
       )}
+      </div>
     </div>
   );
 }

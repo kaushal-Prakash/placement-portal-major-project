@@ -1,19 +1,58 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Star, Send, X, Plus, ChevronLeft, Building2, Briefcase, 
+  MessageSquare, Lightbulb, Trophy, Search, Filter, ArrowLeft
+} from "lucide-react";
+
+const COMPANY_EMOJIS = { 
+  "Google": "🔵", "Microsoft": "🟩", "Amazon": "🟠", "Meta": "🔵",
+  "Apple": "⚪", "Netflix": "🔴", "default": "🏢" 
+};
+
+function StarRating({ value, onChange, readonly = false }) {
+  const [hovered, setHovered] = useState(0);
+  return (
+    <div className="flex gap-1">
+      {[1, 2, 3, 4, 5].map(n => (
+        <button
+          key={n}
+          type="button"
+          disabled={readonly}
+          onClick={() => onChange && onChange(n)}
+          onMouseEnter={() => !readonly && setHovered(n)}
+          onMouseLeave={() => !readonly && setHovered(0)}
+          className={`transition-all ${readonly ? "cursor-default" : "cursor-pointer hover:scale-110"}`}
+        >
+          <Star 
+            className={`w-5 h-5 transition-colors ${
+              (hovered || value) >= n 
+                ? "text-amber-400 fill-amber-400" 
+                : "text-gray-300"
+            }`} 
+          />
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export default function AlumniExperience() {
   const router = useRouter();
   const [feedbacks, setFeedbacks] = useState([]);
   const [user, setUser] = useState(null);
-  
-  // Form State
   const [showForm, setShowForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  // Form state
   const [company, setCompany] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [questions, setQuestions] = useState("");
   const [advice, setAdvice] = useState("");
-  const [rating, setRating] = useState(5);
+  const [rating, setRating] = useState(3);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -44,10 +83,10 @@ export default function AlumniExperience() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     const token = localStorage.getItem("token");
     
-    // Split questions by newline or comma
-    const interviewQuestions = questions.split('\\n').filter(q => q.trim() !== "");
+    const interviewQuestions = questions.split('\n').filter(q => q.trim() !== "");
 
     try {
       const res = await fetch("http://localhost:5001/api/feedback", {
@@ -56,23 +95,12 @@ export default function AlumniExperience() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({
-          company,
-          jobTitle,
-          interviewQuestions,
-          advice,
-          rating: Number(rating)
-        })
+        body: JSON.stringify({ company, jobTitle, interviewQuestions, advice, rating: Number(rating) })
       });
 
       if (res.ok) {
-        alert("Feedback submitted successfully!");
         setShowForm(false);
-        setCompany("");
-        setJobTitle("");
-        setQuestions("");
-        setAdvice("");
-        setRating(5);
+        setCompany(""); setJobTitle(""); setQuestions(""); setAdvice(""); setRating(3);
         fetchFeedbacks(token);
       } else {
         const errorData = await res.json();
@@ -80,101 +108,353 @@ export default function AlumniExperience() {
       }
     } catch (err) {
       alert("Error submitting feedback");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  if (!user) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  const resetForm = () => {
+    setShowForm(false);
+    setCompany(""); setJobTitle(""); setQuestions(""); setAdvice(""); setRating(3);
+  };
+
+  const filtered = feedbacks.filter(fb =>
+    !searchQuery || 
+    fb.company?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    fb.jobTitle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    fb.user?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const canShare = user?.isPlaced || user?.role === 'admin';
+
+  if (!user) return (
+    <div className="min-h-screen bg-[#f7f2eb] flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-[#8b9a6e] border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <header className="max-w-6xl mx-auto flex justify-between items-center mb-10">
-        <div>
-          <h1 className="text-3xl font-poppins font-bold text-gray-800">Alumni Experience Hub</h1>
-          <p className="text-gray-600">Learn from seniors who cracked top companies</p>
-        </div>
-        <div className="flex gap-4">
-          <button 
-            onClick={() => router.push("/dashboard")}
-            className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors"
-          >
-            Back to Dashboard
-          </button>
-          {(user.isPlaced || user.role === 'admin') && (
-            <button 
-              onClick={() => setShowForm(!showForm)}
-              className="px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors"
-            >
-              {showForm ? "Cancel" : "Share Experience"}
-            </button>
-          )}
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#f7f2eb] relative overflow-hidden">
+      {/* Decorative BG */}
+      <div className="absolute top-[-15%] right-[-10%] w-[50vw] h-[50vw] bg-[#8b9a6e]/8 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] left-[-10%] w-[40vw] h-[40vw] bg-[#eae2d6]/50 rounded-full blur-[100px] pointer-events-none" />
 
-      <main className="max-w-6xl mx-auto">
-        {showForm && (
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
-            <h2 className="text-xl font-semibold mb-4">Share Your Interview Experience</h2>
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
-                <input required type="text" value={company} onChange={e => setCompany(e.target.value)} className="w-full p-2 border rounded-md" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
-                <input required type="text" value={jobTitle} onChange={e => setJobTitle(e.target.value)} className="w-full p-2 border rounded-md" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Questions Asked (One per line)</label>
-                <textarea required value={questions} onChange={e => setQuestions(e.target.value)} className="w-full p-2 border rounded-md h-24" placeholder="What is the difference between var, let, and const?\nExplain the virtual DOM." />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Advice for Juniors</label>
-                <textarea required value={advice} onChange={e => setAdvice(e.target.value)} className="w-full p-2 border rounded-md h-24" placeholder="Focus heavily on DSA strings and arrays..." />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty Rating (1-5)</label>
-                <input required type="number" min="1" max="5" value={rating} onChange={e => setRating(e.target.value)} className="w-full p-2 border rounded-md" />
-              </div>
-              <div className="md:col-span-2">
-                <button type="submit" className="px-6 py-2 bg-gray-900 text-white rounded-md font-medium hover:bg-gray-800">
-                  Submit Experience
-                </button>
-              </div>
-            </form>
+      {/* Header */}
+      <motion.header 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative z-10 border-b border-white/60 backdrop-blur-xl bg-white/40"
+      >
+        <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="p-2.5 rounded-xl bg-white/60 border border-white/50 shadow-sm hover:bg-white/80 transition-all text-gray-500 hover:text-gray-700"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Alumni Experience Hub</h1>
+              <p className="text-gray-500 text-sm">Real insights from seniors who cracked top companies</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by company..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="pl-10 pr-4 py-2.5 rounded-xl bg-white/60 backdrop-blur border border-white/50 text-sm focus:outline-none focus:ring-2 focus:ring-[#8b9a6e] focus:bg-white/80 transition-all w-56"
+              />
+            </div>
+            {canShare && (
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setShowForm(true)}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#8b9a6e] to-[#6b7a4e] text-white font-semibold text-sm shadow-lg shadow-[#8b9a6e]/20 hover:shadow-[#8b9a6e]/30 transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                Share Experience
+              </motion.button>
+            )}
+          </div>
+        </div>
+      </motion.header>
+
+      {/* Stats Bar */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-6 relative z-10"
+      >
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <MessageSquare className="w-4 h-4 text-[#8b9a6e]" />
+          <span><strong className="text-gray-900">{feedbacks.length}</strong> experiences shared</span>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <Building2 className="w-4 h-4 text-[#8b9a6e]" />
+          <span><strong className="text-gray-900">{new Set(feedbacks.map(f => f.company)).size}</strong> companies covered</span>
+        </div>
+        {searchQuery && (
+          <div className="flex items-center gap-2 text-sm text-[#8b9a6e] font-medium ml-auto">
+            <Filter className="w-4 h-4" />
+            {filtered.length} results for "{searchQuery}"
+            <button onClick={() => setSearchQuery("")} className="ml-1 text-gray-400 hover:text-gray-600">
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
+      </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {feedbacks.map(fb => (
-            <div key={fb._id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="text-xl font-bold text-gray-900">{fb.company}</h3>
-                <span className="bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-1 rounded">
-                  Difficulty: {fb.rating}/5
-                </span>
-              </div>
-              <p className="text-primary font-medium text-sm mb-4">{fb.jobTitle}</p>
-              
-              <div className="flex-grow mb-4">
-                <h4 className="font-semibold text-gray-800 text-sm mb-2">Questions Asked:</h4>
-                <ul className="list-disc pl-5 text-sm text-gray-600 space-y-1">
-                  {fb.interviewQuestions.map((q, idx) => (
-                    <li key={idx}>{q}</li>
-                  ))}
-                </ul>
-              </div>
+      {/* Share Form Modal */}
+      <AnimatePresence>
+        {showForm && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
+              onClick={resetForm}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", bounce: 0.3 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-6"
+            >
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                <div className="p-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">Share Your Experience</h2>
+                      <p className="text-gray-500 text-sm mt-1">Help your juniors prepare for their interviews</p>
+                    </div>
+                    <button onClick={resetForm} className="p-2.5 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
 
-              <div className="mt-auto border-t pt-4">
-                <h4 className="font-semibold text-gray-800 text-sm mb-1">Advice:</h4>
-                <p className="text-sm text-gray-600 italic">"{fb.advice}"</p>
-                <p className="text-xs text-gray-400 mt-3">Shared by {fb.user?.name || 'Anonymous'}</p>
+                  <form onSubmit={handleSubmit} className="space-y-5">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          <Building2 className="w-4 h-4 inline mr-1.5 text-[#8b9a6e]" />
+                          Company
+                        </label>
+                        <input 
+                          required type="text" value={company} 
+                          onChange={e => setCompany(e.target.value)}
+                          placeholder="e.g. Google, Microsoft..."
+                          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8b9a6e] focus:border-transparent outline-none text-sm transition-all bg-gray-50 focus:bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          <Briefcase className="w-4 h-4 inline mr-1.5 text-[#8b9a6e]" />
+                          Role / Job Title
+                        </label>
+                        <input 
+                          required type="text" value={jobTitle} 
+                          onChange={e => setJobTitle(e.target.value)}
+                          placeholder="e.g. Software Engineer..."
+                          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8b9a6e] focus:border-transparent outline-none text-sm transition-all bg-gray-50 focus:bg-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        <MessageSquare className="w-4 h-4 inline mr-1.5 text-[#8b9a6e]" />
+                        Interview Questions <span className="text-gray-400 font-normal">(one per line)</span>
+                      </label>
+                      <textarea 
+                        required value={questions} 
+                        onChange={e => setQuestions(e.target.value)}
+                        rows={5}
+                        placeholder={"What is the difference between var, let, and const?\nExplain the virtual DOM.\nHow does garbage collection work in JavaScript?"}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8b9a6e] focus:border-transparent outline-none text-sm transition-all bg-gray-50 focus:bg-white resize-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        <Lightbulb className="w-4 h-4 inline mr-1.5 text-amber-500" />
+                        Advice for Juniors
+                      </label>
+                      <textarea 
+                        required value={advice} 
+                        onChange={e => setAdvice(e.target.value)}
+                        rows={3}
+                        placeholder="Focus heavily on DSA strings and arrays, system design basics..."
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8b9a6e] focus:border-transparent outline-none text-sm transition-all bg-gray-50 focus:bg-white resize-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-3">
+                        Difficulty Rating
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <StarRating value={rating} onChange={setRating} />
+                        <span className="text-sm text-gray-500">
+                          {["", "Very Easy", "Easy", "Medium", "Hard", "Very Hard"][rating]}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <button 
+                        type="button" onClick={resetForm}
+                        className="flex-1 py-3.5 rounded-xl border-2 border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition-all"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        type="submit" disabled={isSubmitting}
+                        className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-[#8b9a6e] to-[#6b7a4e] text-white font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-60 shadow-lg shadow-[#8b9a6e]/20"
+                      >
+                        {isSubmitting ? (
+                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <Send className="w-4 h-4" />
+                        )}
+                        {isSubmitting ? "Submitting..." : "Submit Experience"}
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-6 pb-16 relative z-10">
+        {filtered.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="py-24 text-center"
+          >
+            <div className="w-20 h-20 bg-white/80 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl border border-white/50 text-4xl">
+              {searchQuery ? "🔍" : "✨"}
             </div>
-          ))}
-          {feedbacks.length === 0 && (
-            <p className="text-gray-500 italic col-span-3">No interview experiences shared yet.</p>
-          )}
-        </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">
+              {searchQuery ? `No results for "${searchQuery}"` : "Be the First to Share!"}
+            </h3>
+            <p className="text-gray-500 max-w-md mx-auto text-sm leading-relaxed">
+              {searchQuery 
+                ? "Try a different company name or clear your search." 
+                : "No interview experiences shared yet. If you've been placed, share your journey to help your juniors!"
+              }
+            </p>
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery("")}
+                className="mt-6 px-6 py-2.5 rounded-xl bg-white/60 border border-white/50 text-gray-700 font-medium text-sm hover:bg-white/80 transition-all shadow-sm"
+              >
+                Clear Search
+              </button>
+            )}
+          </motion.div>
+        ) : (
+          <motion.div
+            variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.07 } } }}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          >
+            {filtered.map(fb => (
+              <motion.div 
+                key={fb._id}
+                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                className="group bg-white/60 backdrop-blur-xl p-7 rounded-3xl shadow-xl border border-white/50 flex flex-col h-full hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden"
+              >
+                {/* Background gradient */}
+                <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-[#8b9a6e]/8 to-transparent rounded-full -mr-16 -mt-16 blur-2xl pointer-events-none" />
+                
+                {/* Company Header */}
+                <div className="flex items-start justify-between mb-5 relative z-10">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center text-2xl shadow-inner border border-gray-100 shrink-0">
+                      {COMPANY_EMOJIS[fb.company] || COMPANY_EMOJIS.default}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900 group-hover:text-[#8b9a6e] transition-colors leading-tight">{fb.company}</h3>
+                      <p className="text-[#8b9a6e] font-semibold text-sm">{fb.jobTitle}</p>
+                    </div>
+                  </div>
+                  <div className="shrink-0">
+                    <StarRating value={fb.rating} readonly />
+                  </div>
+                </div>
+
+                {/* Difficulty Badge */}
+                <div className="mb-4 relative z-10">
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                    fb.rating >= 4 ? "bg-red-50 text-red-700 border border-red-100" :
+                    fb.rating === 3 ? "bg-amber-50 text-amber-700 border border-amber-100" :
+                    "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                  }`}>
+                    <Trophy className="w-3 h-3" />
+                    {["", "Very Easy", "Easy", "Moderate", "Hard", "Very Hard"][fb.rating]} Interview
+                  </span>
+                </div>
+
+                {/* Questions Section */}
+                <div className="flex-grow mb-5 relative z-10">
+                  <h4 className="font-bold text-gray-800 text-xs uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5 text-[#8b9a6e]" />
+                    Questions Asked
+                  </h4>
+                  <ul className="space-y-2">
+                    {fb.interviewQuestions.slice(0, 4).map((q, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-sm text-gray-700 leading-relaxed">
+                        <span className="w-5 h-5 rounded-full bg-[#8b9a6e]/10 text-[#8b9a6e] flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">{idx + 1}</span>
+                        <span className="line-clamp-2">{q}</span>
+                      </li>
+                    ))}
+                    {fb.interviewQuestions.length > 4 && (
+                      <li className="text-xs text-gray-400 italic pl-7">+{fb.interviewQuestions.length - 4} more questions...</li>
+                    )}
+                  </ul>
+                </div>
+
+                {/* Advice Section */}
+                <div className="border-t border-gray-100/80 pt-4 relative z-10">
+                  <h4 className="font-bold text-gray-800 text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                    Advice
+                  </h4>
+                  <p className="text-sm text-gray-600 italic leading-relaxed line-clamp-3">&ldquo;{fb.advice}&rdquo;</p>
+                </div>
+
+                {/* Footer */}
+                <div className="mt-4 pt-3 border-t border-gray-100/50 flex items-center justify-between relative z-10">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#8b9a6e] to-[#6b7a4e] flex items-center justify-center text-white text-xs font-bold">
+                      {(fb.user?.name || "A").charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-xs text-gray-500 font-medium">{fb.user?.name || "Anonymous"}</span>
+                  </div>
+                  {fb.createdAt && (
+                    <span className="text-xs text-gray-400">
+                      {new Date(fb.createdAt).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}
+                    </span>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
       </main>
     </div>
   );

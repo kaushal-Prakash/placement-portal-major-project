@@ -1,8 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { User, Mail, GraduationCap, Upload, FileText, CheckCircle, Search, Briefcase, FileCheck, MessageSquare, Plus, Loader2, Bot, Calendar, AlertCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  User, Mail, GraduationCap, Upload, FileText, CheckCircle, Search, 
+  Briefcase, FileCheck, MessageSquare, Plus, Loader2, Bot, Calendar, 
+  AlertCircle, Edit3, Save, X, Star, BookOpen, TrendingUp, Award
+} from "lucide-react";
 
 export default function StudentDashboard() {
   const router = useRouter();
@@ -15,23 +19,28 @@ export default function StudentDashboard() {
   const [mySlots, setMySlots] = useState([]);
   const [applyingJobId, setApplyingJobId] = useState(null);
 
+  // Profile edit state
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileSaveMsg, setProfileSaveMsg] = useState("");
+  const [editForm, setEditForm] = useState({
+    cgpa: "", skills: "", activeBacklogs: "", historyOfBacklogs: "", tenthMarks: "", twelfthMarks: ""
+  });
+
   const fetchData = async (token) => {
     try {
-      // Fetch available jobs (Smart Feed)
       const jobsRes = await fetch("http://localhost:5001/api/jobs/smart-feed", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       const jobsData = await jobsRes.json();
       if (jobsRes.ok) setJobs(jobsData);
 
-      // Fetch my applications
       const appsRes = await fetch("http://localhost:5001/api/applications/my", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       const appsData = await appsRes.json();
       if (appsRes.ok) setMyApplications(appsData);
 
-      // Fetch upcoming interview slots
       const slotsRes = await fetch("http://localhost:5001/api/interviews/student/my-slots", {
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -89,12 +98,10 @@ export default function StudentDashboard() {
     if (pendingData && pendingName) {
       setUploadStatus("Processing uploaded resume...");
       setIsUploading(true);
-      // Remove from session storage immediately to prevent duplicate uploads
       sessionStorage.removeItem("pendingResumeData");
       sessionStorage.removeItem("pendingResumeName");
       
       try {
-        // Convert Data URL back to a File object
         const res = await fetch(pendingData);
         const blob = await res.blob();
         const file = new File([blob], pendingName, { type: blob.type });
@@ -104,9 +111,7 @@ export default function StudentDashboard() {
         
         const uploadRes = await fetch("http://localhost:5001/api/upload/resume", {
           method: "POST",
-          headers: {
-            "Authorization": `Bearer ${token}`
-          },
+          headers: { "Authorization": `Bearer ${token}` },
           body: formData
         });
         
@@ -142,9 +147,30 @@ export default function StudentDashboard() {
       router.push("/admin");
       return;
     }
-    
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    setUser(parsedUser);
+
+    // Fetch fresh profile from server
+    fetch("http://localhost:5001/api/auth/me", {
+      headers: { "Authorization": `Bearer ${token}` }
+    }).then(r => r.json()).then(freshUser => {
+      if (freshUser._id) {
+        const merged = { ...parsedUser, ...freshUser, id: freshUser._id };
+        setUser(merged);
+        localStorage.setItem("user", JSON.stringify(merged));
+        setEditForm({
+          cgpa: freshUser.cgpa ?? "",
+          skills: Array.isArray(freshUser.skills) ? freshUser.skills.join(", ") : (freshUser.skills || ""),
+          activeBacklogs: freshUser.activeBacklogs ?? "",
+          historyOfBacklogs: freshUser.historyOfBacklogs ?? "",
+          tenthMarks: freshUser.tenthMarks ?? "",
+          twelfthMarks: freshUser.twelfthMarks ?? "",
+        });
+      } else {
+        setUser(parsedUser);
+      }
+    }).catch(() => {
+      setUser(parsedUser);
+    });
+
     fetchData(token);
     checkAndUploadPendingResume(token, parsedUser);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -163,20 +189,17 @@ export default function StudentDashboard() {
     try {
       const res = await fetch("http://localhost:5001/api/upload/resume", {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        },
+        headers: { "Authorization": `Bearer ${token}` },
         body: formData
       });
 
       const data = await res.json();
       if (res.ok) {
         setUploadStatus("Resume uploaded successfully!");
-        // Update user state to reflect uploaded resume
         const updatedUser = { ...user, resumeUrl: data.filePath };
         setUser(updatedUser);
         localStorage.setItem("user", JSON.stringify(updatedUser));
-        setTimeout(() => setUploadStatus(""), 3000); // Clear success message after 3s
+        setTimeout(() => setUploadStatus(""), 3000);
       } else {
         setUploadStatus(data.message || "Failed to upload");
       }
@@ -184,6 +207,46 @@ export default function StudentDashboard() {
       setUploadStatus("Error uploading resume");
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    setIsSavingProfile(true);
+    setProfileSaveMsg("");
+    const token = localStorage.getItem("token");
+    try {
+      const skillsArray = editForm.skills
+        ? editForm.skills.split(",").map(s => s.trim()).filter(Boolean)
+        : [];
+      const res = await fetch("http://localhost:5001/api/auth/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({
+          cgpa: editForm.cgpa !== "" ? Number(editForm.cgpa) : undefined,
+          skills: skillsArray,
+          activeBacklogs: editForm.activeBacklogs !== "" ? Number(editForm.activeBacklogs) : undefined,
+          historyOfBacklogs: editForm.historyOfBacklogs !== "" ? Number(editForm.historyOfBacklogs) : undefined,
+          tenthMarks: editForm.tenthMarks !== "" ? Number(editForm.tenthMarks) : undefined,
+          twelfthMarks: editForm.twelfthMarks !== "" ? Number(editForm.twelfthMarks) : undefined,
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const updatedUser = { ...user, ...data.user };
+        setUser(updatedUser);
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+        setProfileSaveMsg("✓ Profile saved successfully!");
+        setIsEditingProfile(false);
+        // Refresh job feed with new eligibility
+        fetchData(token);
+        setTimeout(() => setProfileSaveMsg(""), 4000);
+      } else {
+        setProfileSaveMsg(data.message || "Failed to save profile.");
+      }
+    } catch {
+      setProfileSaveMsg("Error saving profile.");
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -199,14 +262,11 @@ export default function StudentDashboard() {
     try {
       const res = await fetch(`http://localhost:5001/api/applications/${jobId}`, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
+        headers: { "Authorization": `Bearer ${token}` }
       });
       const data = await res.json();
       
       if (res.ok) {
-        // Refresh applications list
         fetchData(token); 
       } else {
         alert(data.message || "Failed to apply");
@@ -229,16 +289,16 @@ export default function StudentDashboard() {
 
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
+    visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
   };
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
   };
+
+  const cgpaVal = parseFloat(user.cgpa);
+  const cgpaColor = cgpaVal >= 8.5 ? "text-emerald-600" : cgpaVal >= 7.0 ? "text-amber-600" : "text-red-500";
 
   return (
     <div className="min-h-screen bg-[#f7f2eb] p-6 sm:p-8 relative overflow-hidden">
@@ -258,39 +318,241 @@ export default function StudentDashboard() {
             transition={{ duration: 0.5 }}
             className="bg-white/60 backdrop-blur-xl p-8 rounded-3xl shadow-xl border border-white/50"
           >
-            <div className="flex items-center gap-4 mb-8">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#8b9a6e] to-[#6b7a4e] flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-                {user.name.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 leading-tight">{user.name}</h2>
-                <span className="inline-block mt-1 px-3 py-1 bg-[#8b9a6e]/10 text-[#8b9a6e] rounded-full text-xs font-semibold uppercase tracking-wider">
-                  Student
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 text-gray-600 bg-white/50 p-3 rounded-2xl border border-white/50">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500">
-                  <Mail className="w-5 h-5" />
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#8b9a6e] to-[#6b7a4e] flex items-center justify-center text-white text-2xl font-bold shadow-lg shrink-0">
+                  {user.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
+                  <h2 className="text-xl font-bold text-gray-900 leading-tight">{user.name}</h2>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="inline-block px-3 py-0.5 bg-[#8b9a6e]/10 text-[#8b9a6e] rounded-full text-xs font-semibold uppercase tracking-wider">
+                      Student
+                    </span>
+                    {user.isPlaced && (
+                      <span className="inline-block px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">
+                        ✓ Placed
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  if (isEditingProfile) {
+                    setIsEditingProfile(false);
+                  } else {
+                    setEditForm({
+                      cgpa: user.cgpa ?? "",
+                      skills: Array.isArray(user.skills) ? user.skills.join(", ") : (user.skills || ""),
+                      activeBacklogs: user.activeBacklogs ?? "",
+                      historyOfBacklogs: user.historyOfBacklogs ?? "",
+                      tenthMarks: user.tenthMarks ?? "",
+                      twelfthMarks: user.twelfthMarks ?? "",
+                    });
+                    setIsEditingProfile(true);
+                  }
+                }}
+                className={`p-2.5 rounded-xl transition-all ${isEditingProfile ? "bg-red-50 text-red-500 hover:bg-red-100" : "bg-gray-100 text-gray-500 hover:bg-[#8b9a6e]/10 hover:text-[#8b9a6e]"}`}
+                title={isEditingProfile ? "Cancel editing" : "Edit profile"}
+              >
+                {isEditingProfile ? <X className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
+              </button>
+            </div>
+
+            {/* Static Info */}
+            <div className="space-y-3 mb-4">
+              <div className="flex items-center gap-3 text-gray-600 bg-white/50 p-3 rounded-2xl border border-white/50">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500 shrink-0">
+                  <Mail className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
                   <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Email</p>
-                  <p className="font-medium text-gray-900">{user.email}</p>
+                  <p className="font-medium text-gray-900 text-sm truncate">{user.email}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 text-gray-600 bg-white/50 p-3 rounded-2xl border border-white/50">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500">
-                  <GraduationCap className="w-5 h-5" />
+              {user.usn && (
+                <div className="flex items-center gap-3 text-gray-600 bg-white/50 p-3 rounded-2xl border border-white/50">
+                  <div className="w-9 h-9 rounded-xl bg-purple-50 flex items-center justify-center text-purple-500 shrink-0">
+                    <Award className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">USN</p>
+                    <p className="font-medium text-gray-900 text-sm">{user.usn}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">CGPA</p>
-                  <p className="font-medium text-gray-900">{user.cgpa || 'N/A'}</p>
+              )}
+
+              {(user.branch || user.batch) && (
+                <div className="flex items-center gap-3 text-gray-600 bg-white/50 p-3 rounded-2xl border border-white/50">
+                  <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500 shrink-0">
+                    <BookOpen className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Academic</p>
+                    <p className="font-medium text-gray-900 text-sm">
+                      {user.branch?.code || user.branch?.name || ""}{user.branch && user.batch ? " · " : ""}
+                      {user.batch?.year ? `Batch ${user.batch.year}` : ""}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
+
+            {/* Editable Profile Section */}
+            <AnimatePresence mode="wait">
+              {isEditingProfile ? (
+                <motion.div
+                  key="edit"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-3 pt-4 border-t border-gray-100"
+                >
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Edit Academic Details</p>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-500 font-medium block mb-1">CGPA</label>
+                      <input type="number" min="0" max="10" step="0.01" value={editForm.cgpa}
+                        onChange={e => setEditForm({...editForm, cgpa: e.target.value})}
+                        placeholder="e.g. 8.5"
+                        className="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8b9a6e] focus:border-transparent outline-none bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 font-medium block mb-1">Active Backlogs</label>
+                      <input type="number" min="0" value={editForm.activeBacklogs}
+                        onChange={e => setEditForm({...editForm, activeBacklogs: e.target.value})}
+                        placeholder="0"
+                        className="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8b9a6e] focus:border-transparent outline-none bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 font-medium block mb-1">10th %</label>
+                      <input type="number" min="0" max="100" step="0.01" value={editForm.tenthMarks}
+                        onChange={e => setEditForm({...editForm, tenthMarks: e.target.value})}
+                        placeholder="e.g. 90.5"
+                        className="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8b9a6e] focus:border-transparent outline-none bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 font-medium block mb-1">12th %</label>
+                      <input type="number" min="0" max="100" step="0.01" value={editForm.twelfthMarks}
+                        onChange={e => setEditForm({...editForm, twelfthMarks: e.target.value})}
+                        placeholder="e.g. 87.0"
+                        className="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8b9a6e] focus:border-transparent outline-none bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-gray-500 font-medium block mb-1">Skills (comma separated)</label>
+                    <input type="text" value={editForm.skills}
+                      onChange={e => setEditForm({...editForm, skills: e.target.value})}
+                      placeholder="React, Node.js, Python..."
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8b9a6e] focus:border-transparent outline-none bg-white"
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleSaveProfile}
+                    disabled={isSavingProfile}
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#8b9a6e] to-[#6b7a4e] text-white font-semibold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-60 shadow-lg shadow-[#8b9a6e]/20"
+                  >
+                    {isSavingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    {isSavingProfile ? "Saving..." : "Save Changes"}
+                  </button>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="view"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="space-y-3 pt-4 border-t border-gray-100"
+                >
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-3 text-center border border-amber-100">
+                      <GraduationCap className="w-4 h-4 text-amber-500 mx-auto mb-1" />
+                      <p className={`text-lg font-bold ${cgpaColor}`}>{user.cgpa ?? '—'}</p>
+                      <p className="text-xs text-gray-500">CGPA</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-3 text-center border border-blue-100">
+                      <TrendingUp className="w-4 h-4 text-blue-500 mx-auto mb-1" />
+                      <p className="text-lg font-bold text-gray-900">{user.activeBacklogs ?? '0'}</p>
+                      <p className="text-xs text-gray-500">Backlogs</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-[#8b9a6e]/10 to-[#8b9a6e]/5 rounded-2xl p-3 text-center border border-[#8b9a6e]/20">
+                      <Star className="w-4 h-4 text-[#8b9a6e] mx-auto mb-1" />
+                      <p className="text-lg font-bold text-gray-900">{myApplications.length}</p>
+                      <p className="text-xs text-gray-500">Applied</p>
+                    </div>
+                  </div>
+
+                  {/* Skills */}
+                  {user.skills && user.skills.length > 0 && (
+                    <div>
+                      <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-2">Skills</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(Array.isArray(user.skills) ? user.skills : [user.skills]).slice(0, 8).map((skill, i) => (
+                          <span key={i} className="px-2.5 py-1 bg-white text-gray-700 rounded-lg text-xs font-semibold border border-gray-100 shadow-sm">
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Marks */}
+                  {(user.tenthMarks || user.twelfthMarks) && (
+                    <div className="grid grid-cols-2 gap-2">
+                      {user.tenthMarks && (
+                        <div className="bg-white/50 rounded-xl p-2.5 border border-white/50">
+                          <p className="text-xs text-gray-400">10th %</p>
+                          <p className="font-bold text-gray-800">{user.tenthMarks}%</p>
+                        </div>
+                      )}
+                      {user.twelfthMarks && (
+                        <div className="bg-white/50 rounded-xl p-2.5 border border-white/50">
+                          <p className="text-xs text-gray-400">12th %</p>
+                          <p className="font-bold text-gray-800">{user.twelfthMarks}%</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      setEditForm({
+                        cgpa: user.cgpa ?? "",
+                        skills: Array.isArray(user.skills) ? user.skills.join(", ") : (user.skills || ""),
+                        activeBacklogs: user.activeBacklogs ?? "",
+                        historyOfBacklogs: user.historyOfBacklogs ?? "",
+                        tenthMarks: user.tenthMarks ?? "",
+                        twelfthMarks: user.twelfthMarks ?? "",
+                      });
+                      setIsEditingProfile(true);
+                    }}
+                    className="w-full py-2 rounded-xl border-2 border-dashed border-[#8b9a6e]/30 text-[#8b9a6e] text-sm font-medium hover:bg-[#8b9a6e]/5 hover:border-[#8b9a6e]/60 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    Update Academic Info
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {profileSaveMsg && (
+              <motion.p 
+                initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
+                className={`text-sm text-center font-medium mt-3 px-3 py-2 rounded-xl ${profileSaveMsg.startsWith("✓") ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}
+              >
+                {profileSaveMsg}
+              </motion.p>
+            )}
           </motion.div>
 
           {/* Resume Upload Card */}
@@ -377,19 +639,34 @@ export default function StudentDashboard() {
             
             {myApplications.length > 0 ? (
               <ul className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                {myApplications.map(app => (
-                  <li key={app._id} className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-                    <p className="font-bold text-gray-900 mb-1 truncate">{app.job?.title || 'Unknown Job'}</p>
-                    <div className="flex justify-between items-center mt-2">
-                      <span className="text-gray-500 text-xs font-medium bg-gray-50 px-2 py-1 rounded-md">{app.job?.company?.name || app.job?.company || 'Company'}</span>
-                      {app.matchScore !== null && (
-                        <span className="px-2.5 py-1 bg-[#8b9a6e]/10 text-[#5b6a3e] rounded-lg text-xs font-bold">
-                          {app.matchScore}% Match
-                        </span>
-                      )}
-                    </div>
-                  </li>
-                ))}
+                {myApplications.map(app => {
+                  const statusColor = {
+                    placed: "bg-emerald-100 text-emerald-700",
+                    shortlisted: "bg-blue-100 text-blue-700",
+                    interviewing: "bg-purple-100 text-purple-700",
+                    rejected: "bg-red-100 text-red-700",
+                    applied: "bg-gray-100 text-gray-600"
+                  }[app.status?.toLowerCase()] || "bg-gray-100 text-gray-600";
+                  
+                  return (
+                    <li key={app._id} className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                      <p className="font-bold text-gray-900 mb-1 truncate">{app.job?.title || 'Unknown Job'}</p>
+                      <div className="flex justify-between items-center mt-2">
+                        <span className="text-gray-500 text-xs font-medium bg-gray-50 px-2 py-1 rounded-md">{app.job?.company?.name || app.job?.company || 'Company'}</span>
+                        <div className="flex items-center gap-2">
+                          {app.matchScore !== null && (
+                            <span className="px-2.5 py-1 bg-[#8b9a6e]/10 text-[#5b6a3e] rounded-lg text-xs font-bold">
+                              {app.matchScore}% Match
+                            </span>
+                          )}
+                          <span className={`px-2 py-0.5 rounded-md text-xs font-bold capitalize ${statusColor}`}>
+                            {app.status || 'Applied'}
+                          </span>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <div className="text-center py-8 px-4 border-2 border-dashed border-gray-200 rounded-2xl">
@@ -431,6 +708,32 @@ export default function StudentDashboard() {
               </div>
             </motion.div>
           )}
+
+          {/* Quick Links */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="bg-white/60 backdrop-blur-xl p-6 rounded-3xl shadow-xl border border-white/50"
+          >
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Quick Links</p>
+            <div className="space-y-2">
+              <button
+                onClick={() => router.push("/alumni-experience")}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/50 hover:bg-[#8b9a6e]/5 border border-white/50 hover:border-[#8b9a6e]/20 text-gray-700 text-sm font-medium transition-all"
+              >
+                <User className="w-4 h-4 text-[#8b9a6e]" />
+                Alumni Experiences
+              </button>
+              <button
+                onClick={() => router.push("/dashboard/copilot")}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/50 hover:bg-[#8b9a6e]/5 border border-white/50 hover:border-[#8b9a6e]/20 text-gray-700 text-sm font-medium transition-all"
+              >
+                <Bot className="w-4 h-4 text-[#8b9a6e]" />
+                AI Career Copilot
+              </button>
+            </div>
+          </motion.div>
         </div>
 
         {/* Right Content: Recommended Jobs */}
