@@ -50,11 +50,22 @@ router.get('/smart-feed', protect, async (req, res) => {
     const formData = new FormData();
     formData.append('file', fs.createReadStream(filePath));
 
-    // 1. Parse PDF
-    const parseRes = await fetch('http://localhost:8000/api/parse-pdf', {
-      method: 'POST',
-      body: formData,
-    });
+    // 1. Parse PDF with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+    let parseRes;
+    try {
+      parseRes = await fetch('http://localhost:8000/api/parse-pdf', {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal
+      });
+    } catch {
+      clearTimeout(timeoutId);
+      return res.json(jobs.sort((a, b) => b.createdAt - a.createdAt));
+    }
+    clearTimeout(timeoutId);
     
     if (!parseRes.ok) {
        return res.json(jobs.sort((a, b) => b.createdAt - a.createdAt));
@@ -63,16 +74,27 @@ router.get('/smart-feed', protect, async (req, res) => {
     const parseData = await parseRes.json();
     const resumeText = parseData.parsed_text;
 
-    // 2. Bulk Match
+    // 2. Bulk Match with timeout
+    const matchController = new AbortController();
+    const matchTimeoutId = setTimeout(() => matchController.abort(), 2000);
+
     const jobDescriptions = jobs.map(j => j.description + ' ' + (j.requirements || j.requiredSkills || []).join(' '));
-    const matchReq = await fetch('http://localhost:8000/api/bulk-match', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        resume_text: resumeText,
-        job_descriptions: jobDescriptions
-      })
-    });
+    let matchReq;
+    try {
+      matchReq = await fetch('http://localhost:8000/api/bulk-match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resume_text: resumeText,
+          job_descriptions: jobDescriptions
+        }),
+        signal: matchController.signal
+      });
+    } catch {
+      clearTimeout(matchTimeoutId);
+      return res.json(jobs.sort((a, b) => b.createdAt - a.createdAt));
+    }
+    clearTimeout(matchTimeoutId);
 
     if (!matchReq.ok) {
        return res.json(jobs.sort((a, b) => b.createdAt - a.createdAt));
@@ -91,14 +113,17 @@ router.get('/smart-feed', protect, async (req, res) => {
     res.json(scoredJobs);
 
   } catch (error) {
-    console.error('Smart feed error:', error);
-    // Fallback to basic list on error
-    const fallbackJobs = await Job.find({ status: 'open' })
-      .populate('company')
-      .populate('allowedBranches')
-      .populate('allowedBatches')
-      .sort({ createdAt: -1 });
-    res.json(fallbackJobs);
+    console.error('Smart feed fallback:', error.message);
+    try {
+      const fallbackJobs = await Job.find({ status: 'open' })
+        .populate('company')
+        .populate('allowedBranches')
+        .populate('allowedBatches')
+        .sort({ createdAt: -1 });
+      res.json(fallbackJobs);
+    } catch (dbErr) {
+      res.status(500).json({ message: 'Error loading jobs', error: dbErr.message });
+    }
   }
 });
 

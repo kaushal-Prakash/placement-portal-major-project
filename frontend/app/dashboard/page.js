@@ -12,6 +12,9 @@ import {
 export default function StudentDashboard() {
   const router = useRouter();
   const [jobs, setJobs] = useState([]);
+  const [jobsLoading, setJobsLoading] = useState(true);
+  const [jobsError, setJobsError] = useState("");
+  const [jobSearch, setJobSearch] = useState("");
   const [user, setUser] = useState(null);
   const [resumeFile, setResumeFile] = useState(null);
   const [uploadStatus, setUploadStatus] = useState("");
@@ -31,28 +34,70 @@ export default function StudentDashboard() {
   });
 
   const fetchData = async (token) => {
+    setJobsLoading(true);
+    setJobsError("");
     try {
-      const jobsRes = await fetch("http://localhost:5001/api/jobs/smart-feed", {
+      let jobsRes = await fetch("http://localhost:5001/api/jobs/smart-feed", {
         headers: { "Authorization": `Bearer ${token}` }
       });
-      const jobsData = await jobsRes.json();
-      if (jobsRes.ok) setJobs(jobsData);
+
+      if (jobsRes.status === 401) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        router.push("/login");
+        return;
+      }
+
+      let jobsData;
+      if (jobsRes.ok) {
+        jobsData = await jobsRes.json();
+      } else {
+        const fallbackRes = await fetch("http://localhost:5001/api/jobs", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (fallbackRes.ok) {
+          jobsData = await fallbackRes.json();
+        }
+      }
+
+      if (Array.isArray(jobsData)) {
+        setJobs(jobsData);
+      } else {
+        setJobs([]);
+      }
 
       const appsRes = await fetch("http://localhost:5001/api/applications/my", {
         headers: { "Authorization": `Bearer ${token}` }
       });
-      const appsData = await appsRes.json();
-      if (appsRes.ok) setMyApplications(appsData);
+      if (appsRes.ok) {
+        const appsData = await appsRes.json();
+        if (Array.isArray(appsData)) setMyApplications(appsData);
+      }
 
       const slotsRes = await fetch("http://localhost:5001/api/interviews/student/my-slots", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (slotsRes.ok) {
         const slotsData = await slotsRes.json();
-        setMySlots(slotsData);
+        if (Array.isArray(slotsData)) setMySlots(slotsData);
       }
     } catch (err) {
       console.error("Error fetching data:", err);
+      try {
+        const fallback = await fetch("http://localhost:5001/api/jobs");
+        if (fallback.ok) {
+          const fallbackData = await fallback.json();
+          if (Array.isArray(fallbackData)) {
+            setJobs(fallbackData);
+            return;
+          }
+        }
+      } catch {
+        // ignore
+      }
+      setJobsError("Unable to connect to the server. Please check your network and refresh.");
+    } finally {
+      setJobsLoading(false);
     }
   };
 
@@ -154,7 +199,16 @@ export default function StudentDashboard() {
     // Fetch fresh profile from server
     fetch("http://localhost:5001/api/auth/me", {
       headers: { "Authorization": `Bearer ${token}` }
-    }).then(r => r.json()).then(freshUser => {
+    }).then(async r => {
+      if (r.status === 401) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        router.push("/login");
+        return null;
+      }
+      return r.json();
+    }).then(freshUser => {
+      if (!freshUser) return;
       if (freshUser._id) {
         const merged = { ...parsedUser, ...freshUser, id: freshUser._id };
         setUser(merged);
@@ -299,6 +353,15 @@ export default function StudentDashboard() {
   );
 
   const appliedJobIds = new Set(myApplications.map(app => app.job?._id));
+
+  const filteredJobs = jobs.filter(job => {
+    if (!jobSearch.trim()) return true;
+    const query = jobSearch.toLowerCase();
+    const title = (job.title || "").toLowerCase();
+    const company = (typeof job.company === "object" ? job.company?.name || "" : job.company || "").toLowerCase();
+    const skills = (job.requirements || job.requiredSkills || []).map(s => String(s).toLowerCase()).join(" ");
+    return title.includes(query) || company.includes(query) || skills.includes(query);
+  });
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -708,25 +771,77 @@ export default function StudentDashboard() {
             initial={{ opacity: 0, y: -15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="flex items-center justify-between mb-4 px-1"
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 px-1"
           >
             <div>
               <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Recommended Jobs</h2>
               <p className="text-xs text-gray-500 mt-0.5">AI matches matching your skills & academic eligibility</p>
             </div>
-            <span className="text-xs px-3 py-1 bg-[#8b9a6e]/10 text-[#5b6a3e] rounded-full font-bold">
-              {jobs.length} Opportunities
-            </span>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search jobs, skills..."
+                  value={jobSearch}
+                  onChange={(e) => setJobSearch(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 text-xs bg-white/80 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8b9a6e]/50 text-gray-800 placeholder-gray-400 w-44 sm:w-56"
+                />
+              </div>
+              <span className="text-xs px-3 py-1.5 bg-[#8b9a6e]/10 text-[#5b6a3e] rounded-xl font-bold shrink-0">
+                {filteredJobs.length} Jobs
+              </span>
+            </div>
           </motion.div>
           
-          {jobs.length > 0 ? (
+          {jobsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[1, 2].map(n => (
+                <div key={n} className="bg-white/60 p-5 rounded-2xl border border-white/60 shadow-xs animate-pulse space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1.5 flex-1">
+                      <div className="h-5 bg-gray-200 rounded-md w-3/4"></div>
+                      <div className="h-3.5 bg-gray-100 rounded-md w-1/2"></div>
+                    </div>
+                    <div className="h-6 w-12 bg-gray-200 rounded-lg"></div>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="h-4 w-16 bg-gray-200 rounded"></div>
+                    <div className="h-4 w-20 bg-gray-100 rounded"></div>
+                  </div>
+                  <div className="h-10 bg-gray-100 rounded-md"></div>
+                  <div className="grid grid-cols-2 gap-2 pt-2">
+                    <div className="h-8 bg-gray-200 rounded-xl"></div>
+                    <div className="h-8 bg-gray-100 rounded-xl"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : jobsError ? (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="py-10 text-center bg-white/70 backdrop-blur-xl rounded-2xl border border-red-200 shadow-md p-6"
+            >
+              <AlertCircle className="w-8 h-8 mx-auto text-red-500 mb-2" />
+              <h3 className="text-base font-bold text-gray-900 mb-1">Failed to load jobs</h3>
+              <p className="text-xs text-gray-500 mb-4">{jobsError}</p>
+              <button
+                type="button"
+                onClick={() => fetchData(localStorage.getItem("token"))}
+                className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-xs font-semibold shadow transition inline-flex items-center gap-1.5"
+              >
+                Retry Loading
+              </button>
+            </motion.div>
+          ) : filteredJobs.length > 0 ? (
             <motion.div 
               variants={containerVariants}
               initial="hidden"
               animate="visible"
               className="grid grid-cols-1 md:grid-cols-2 gap-4"
             >
-              {jobs.map(job => {
+              {filteredJobs.map(job => {
                 const hasApplied = appliedJobIds.has(job._id);
                 const isApplying = applyingJobId === job._id;
                 const eligibility = checkEligibility(job);
@@ -804,8 +919,9 @@ export default function StudentDashboard() {
                         </span>
                       )}
                     </div>
-                    
-                    <div className="grid grid-cols-2 gap-2 mt-auto relative z-10">
+
+                    {/* Compact Side-by-Side Action Buttons */}
+                    <div className="grid grid-cols-2 gap-2 mt-auto relative z-10 pt-2 border-t border-gray-100">
                       {hasApplied ? (
                         <button disabled className="col-span-1 py-2 rounded-xl bg-gray-100 text-gray-400 font-bold text-xs cursor-not-allowed border border-gray-200 flex items-center justify-center gap-1">
                           <CheckCircle className="w-3.5 h-3.5" />
@@ -813,8 +929,8 @@ export default function StudentDashboard() {
                         </button>
                       ) : !eligibility.eligible ? (
                         <button disabled className="col-span-1 py-2 rounded-xl bg-gray-100 text-gray-400 font-bold text-xs cursor-not-allowed border border-gray-200 flex items-center justify-center gap-1">
-                          <AlertCircle className="w-3.5 h-3.5" />
-                          Ineligible
+                          <Lock className="w-3.5 h-3.5" />
+                          Locked
                         </button>
                       ) : (
                         <button 
@@ -826,7 +942,7 @@ export default function StudentDashboard() {
                           {isApplying ? "Applying..." : "Apply Now"}
                         </button>
                       )}
-                      
+
                       <button 
                         onClick={() => router.push(`/dashboard/mock-interview/${job._id}`)}
                         className="col-span-1 py-2 rounded-xl bg-white hover:bg-[#f7f2eb] border border-[#eae2d6] text-gray-700 hover:text-gray-900 font-bold text-xs transition flex items-center justify-center gap-1 shadow-2xs"
@@ -849,8 +965,12 @@ export default function StudentDashboard() {
               <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
                 <Search className="w-8 h-8 text-gray-400" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-1">No jobs available right now</h3>
-              <p className="text-gray-500 text-xs max-w-sm mx-auto">We're constantly adding new opportunities. Check back later for roles matching your profile.</p>
+              <h3 className="text-xl font-bold text-gray-900 mb-1">
+                {jobSearch ? "No matching jobs found" : "No jobs available right now"}
+              </h3>
+              <p className="text-gray-500 text-xs max-w-sm mx-auto">
+                {jobSearch ? `Try adjusting your search terms for "${jobSearch}".` : "We're constantly adding new opportunities. Check back later for roles matching your profile."}
+              </p>
             </motion.div>
           )}
         </div>
