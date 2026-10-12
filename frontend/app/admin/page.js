@@ -19,7 +19,12 @@ export default function AdminDashboard() {
     company: "",
     description: "",
     requiredCgpa: 7.0,
-    requiredSkills: ""
+    requiredSkills: "",
+    ctc: 6.0,
+    maxBacklogs: 0,
+    allowedBranches: [],
+    allowedBatches: [],
+    driveLink: ""
   });
 
 
@@ -149,19 +154,50 @@ export default function AdminDashboard() {
         },
         body: JSON.stringify({
           ...formData,
-          requiredSkills: formData.requiredSkills.split(",").map(s => s.trim())
+          requiredSkills: formData.requiredSkills.split(",").map(s => s.trim()),
+          ctc: parseFloat(formData.ctc) || 0,
+          maxBacklogs: parseInt(formData.maxBacklogs) || 0,
+          requiredCgpa: parseFloat(formData.requiredCgpa) || 0
         }),
       });
 
       if (res.ok) {
-        setFormData({ title: "", company: "", description: "", requiredCgpa: 7.0, requiredSkills: "" });
+        setFormData({ 
+          title: "", company: "", description: "", requiredCgpa: 7.0, 
+          requiredSkills: "", ctc: 6.0, maxBacklogs: 0, allowedBranches: [], allowedBatches: [], driveLink: "" 
+        });
         fetchJobs();
+        alert("Job posted successfully!");
       } else {
         const data = await res.json();
         alert(data.message || "Failed to post job");
       }
     } catch (err) {
       console.error(err);
+      alert("Error posting job");
+    }
+  };
+
+  const handleUpdateApplicationStatus = async (appId, jobId, newStatus) => {
+    const token = localStorage.getItem("token");
+    try {
+      const res = await fetch(`http://localhost:5001/api/applications/${appId}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (res.ok) {
+        fetchApplications(jobId);
+      } else {
+        const data = await res.json();
+        alert(data.message || "Failed to update status");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error updating status");
     }
   };
 
@@ -317,7 +353,7 @@ export default function AdminDashboard() {
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
-                    <p className="text-primary font-medium mb-2">{job.company}</p>
+                    <p className="text-primary font-medium mb-2">{job.company?.name || job.company}</p>
                     <div className="flex flex-wrap gap-2 mb-3">
                       {job.requiredSkills.map(skill => (
                         <span key={skill} className="px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs font-medium">

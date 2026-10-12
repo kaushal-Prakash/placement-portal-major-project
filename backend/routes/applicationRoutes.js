@@ -135,7 +135,10 @@ router.get('/job/:jobId', protect, adminOnly, async (req, res) => {
 router.get('/my', protect, async (req, res) => {
   try {
     const applications = await Application.find({ user: req.user.id })
-      .populate('job', 'title company');
+      .populate({
+        path: 'job',
+        populate: { path: 'company', select: 'name' }
+      });
     res.json(applications);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -150,25 +153,30 @@ router.get('/my', protect, async (req, res) => {
 router.put('/:id/status', protect, adminOnly, async (req, res) => {
   try {
     const { status } = req.body;
+    if (!status) return res.status(400).json({ message: 'Status is required' });
+
     const application = await Application.findById(req.params.id);
 
     if (!application) {
       return res.status(404).json({ message: 'Application not found' });
     }
 
-    application.status = status;
+    const normalizedStatus = status.toLowerCase();
+    application.status = normalizedStatus;
     await application.save();
 
     // If placed, update user's isPlaced status and currentCTC
-    if (status === 'placed') {
+    if (normalizedStatus === 'placed') {
       const user = await User.findById(application.user);
-      const job = await Job.findById(application.job); // fetch job to get CTC
-      user.isPlaced = true;
-      user.placedJob = application.job;
-      if (job && job.ctc) {
-        user.currentCTC = Math.max(user.currentCTC || 0, job.ctc);
+      const job = await Job.findById(application.job);
+      if (user) {
+        user.isPlaced = true;
+        user.placedJob = application.job;
+        if (job && job.ctc) {
+          user.currentCTC = Math.max(user.currentCTC || 0, job.ctc);
+        }
+        await user.save();
       }
-      await user.save();
     }
 
     res.json(application);

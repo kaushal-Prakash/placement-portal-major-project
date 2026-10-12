@@ -26,9 +26,12 @@ router.post('/schedule/:jobId', protect, adminOnly, async (req, res) => {
     if (!job) return res.status(404).json({ message: 'Job not found' });
 
     // Find shortlisted applications for this job
-    const applications = await Application.find({ job: jobId, status: 'Shortlisted' }).populate('user');
+    const applications = await Application.find({ 
+      job: jobId, 
+      status: { $in: ['shortlisted', 'Shortlisted'] } 
+    }).populate('user');
     if (applications.length === 0) {
-      return res.status(400).json({ message: 'No shortlisted candidates to schedule' });
+      return res.status(400).json({ message: 'No shortlisted candidates found to schedule. Please shortlist candidates first.' });
     }
 
     // Schedule logic
@@ -50,8 +53,8 @@ router.post('/schedule/:jobId', protect, adminOnly, async (req, res) => {
       await slot.save();
       createdSlots.push(slot);
 
-      // Update application status to Interviewing
-      app.status = 'Interviewing';
+      // Update application status to interviewing
+      app.status = 'interviewing';
       await app.save();
 
       // Move currentStart to next available slot (including break)

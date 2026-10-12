@@ -7,7 +7,11 @@ const router = express.Router();
 // GET all jobs (public/student)
 router.get('/', async (req, res) => {
   try {
-    const jobs = await Job.find({ status: 'open' }).sort({ createdAt: -1 });
+    const jobs = await Job.find({ status: 'open' })
+      .populate('company')
+      .populate('allowedBranches')
+      .populate('allowedBatches')
+      .sort({ createdAt: -1 });
     res.json(jobs);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -17,7 +21,11 @@ router.get('/', async (req, res) => {
 // GET smart feed jobs sorted by match score
 router.get('/smart-feed', protect, async (req, res) => {
   try {
-    const jobs = await Job.find({ status: 'open' }).lean(); // Use lean to add matchScore later
+    const jobs = await Job.find({ status: 'open' })
+      .populate('company')
+      .populate('allowedBranches')
+      .populate('allowedBatches')
+      .lean(); // Use lean to add matchScore later
 
     // Ensure we fetch the user's resumeUrl
     const User = (await import('../models/User.js')).default;
@@ -51,7 +59,7 @@ router.get('/smart-feed', protect, async (req, res) => {
     const resumeText = parseData.parsed_text;
 
     // 2. Bulk Match
-    const jobDescriptions = jobs.map(j => j.description + ' ' + (j.requiredSkills || []).join(' '));
+    const jobDescriptions = jobs.map(j => j.description + ' ' + (j.requirements || j.requiredSkills || []).join(' '));
     const matchReq = await fetch('http://localhost:8000/api/bulk-match', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -80,7 +88,11 @@ router.get('/smart-feed', protect, async (req, res) => {
   } catch (error) {
     console.error('Smart feed error:', error);
     // Fallback to basic list on error
-    const fallbackJobs = await Job.find({ status: 'open' }).sort({ createdAt: -1 });
+    const fallbackJobs = await Job.find({ status: 'open' })
+      .populate('company')
+      .populate('allowedBranches')
+      .populate('allowedBatches')
+      .sort({ createdAt: -1 });
     res.json(fallbackJobs);
   }
 });
@@ -89,7 +101,18 @@ router.get('/smart-feed', protect, async (req, res) => {
 // POST a new job (admin only)
 router.post('/', protect, adminOnly, async (req, res) => {
   try {
-    let { title, company, description, requiredCgpa, requiredSkills, driveLink } = req.body;
+    let { 
+      title, 
+      company, 
+      description, 
+      requiredCgpa, 
+      requiredSkills, 
+      driveLink,
+      ctc,
+      maxBacklogs,
+      allowedBranches,
+      allowedBatches
+    } = req.body;
     
     // Find or create company if company name is passed
     const mongoose = (await import('mongoose')).default;
@@ -102,14 +125,21 @@ router.post('/', protect, adminOnly, async (req, res) => {
       title,
       company: companyDoc._id,
       description,
-      minCgpa: requiredCgpa || 0,
-      requirements: requiredSkills,
+      minCgpa: parseFloat(requiredCgpa) || 0,
+      requirements: Array.isArray(requiredSkills) ? requiredSkills : (requiredSkills ? requiredSkills.split(',').map(s => s.trim()) : []),
       driveLink,
-      ctc: 0 // Default CTC
+      ctc: parseFloat(ctc) || 0,
+      maxBacklogs: parseInt(maxBacklogs) || 0,
+      allowedBranches: allowedBranches || [],
+      allowedBatches: allowedBatches || []
     });
 
-    const createdJob = await newJob.save();
-    res.status(201).json(createdJob);
+    await newJob.save();
+    const populatedJob = await Job.findById(newJob._id)
+      .populate('company')
+      .populate('allowedBranches')
+      .populate('allowedBatches');
+    res.status(201).json(populatedJob);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

@@ -4,7 +4,7 @@
   "description": "Smart Career Portal with AI Resume Ranking (Major Project BIS785)",
   "main": "index.js",
   "scripts": {
-    "dev": "concurrently \"npm run dev --prefix frontend\" \"npm run dev --prefix backend\" \"cd ai && source venv/bin/activate && uvicorn main:app --reload\"",
+    "dev": "concurrently \"npm run dev --prefix frontend\" \"npm run dev --prefix backend\" \"uvicorn main:app --app-dir ai --reload --port 8000\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

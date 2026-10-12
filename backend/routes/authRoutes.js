@@ -47,6 +47,45 @@ router.post('/admin/users', protect, adminOnly, async (req, res) => {
 });
 
 /**
+ * @route PUT /api/auth/admin/users/:id
+ * @desc Update a user (student) - Admin Only
+ * @access Private/Admin
+ */
+router.put('/admin/users/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const { name, email, password, cgpa, usn, branch, batch, tenthMarks, twelfthMarks, activeBacklogs, historyOfBacklogs } = req.body;
+
+    if (email && email !== user.email) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser) return res.status(400).json({ message: 'Another user with this email already exists' });
+      user.email = email;
+    }
+
+    if (name) user.name = name;
+    if (usn !== undefined) user.usn = usn;
+    if (branch) user.branch = branch;
+    if (batch) user.batch = batch;
+    if (cgpa !== undefined) user.cgpa = cgpa;
+    if (tenthMarks !== undefined) user.tenthMarks = tenthMarks;
+    if (twelfthMarks !== undefined) user.twelfthMarks = twelfthMarks;
+    if (activeBacklogs !== undefined) user.activeBacklogs = activeBacklogs;
+    if (historyOfBacklogs !== undefined) user.historyOfBacklogs = historyOfBacklogs;
+
+    if (password && password.trim() !== '') {
+      user.password = await bcrypt.hash(password, 10);
+    }
+
+    await user.save();
+    res.json({ message: 'User updated successfully', user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+/**
  * @route PUT /api/auth/admin/users/:id/blacklist
  * @desc Toggle blacklist status of a student
  * @access Private/Admin

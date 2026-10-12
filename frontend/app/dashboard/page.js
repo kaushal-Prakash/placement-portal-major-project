@@ -333,7 +333,7 @@ export default function StudentDashboard() {
                   <li key={app._id} className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
                     <p className="font-bold text-gray-900 mb-1 truncate">{app.job?.title || 'Unknown Job'}</p>
                     <div className="flex justify-between items-center mt-2">
-                      <span className="text-gray-500 text-xs font-medium bg-gray-50 px-2 py-1 rounded-md">{app.job?.company}</span>
+                      <span className="text-gray-500 text-xs font-medium bg-gray-50 px-2 py-1 rounded-md">{app.job?.company?.name || app.job?.company || 'Company'}</span>
                       {app.matchScore !== null && (
                         <span className="px-2.5 py-1 bg-[#8b9a6e]/10 text-[#5b6a3e] rounded-lg text-xs font-bold">
                           {app.matchScore}% Match
@@ -394,7 +394,7 @@ export default function StudentDashboard() {
                         <h3 className="text-xl font-bold text-gray-900 mb-2 leading-tight group-hover:text-[#8b9a6e] transition-colors">{job.title}</h3>
                         <p className="text-gray-600 font-medium text-sm flex items-center gap-1.5">
                           <Briefcase className="w-4 h-4 text-gray-400" />
-                          {job.company}
+                          {job.company?.name || job.company}
                         </p>
                       </div>
                       {job.matchScore !== undefined && (
