@@ -496,12 +496,21 @@ export default function AdminDashboard() {
                       </a>
                     )}
                   </div>
-                  <div className="text-right">
+                  <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                    <button
+                      onClick={() => router.push(`/admin/jobs/${job._id}`)}
+                      className="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-[#8b9a6e]/15 hover:bg-[#8b9a6e]/25 text-[#5b6a3e] border border-[#8b9a6e]/30 transition-all flex items-center gap-1.5 shadow-2xs"
+                      title="Open dedicated company drive page to search, sort students & export Excel"
+                    >
+                      <Building2 className="w-3.5 h-3.5" />
+                      <span>Company Drive Page</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
                     <button 
                       onClick={() => fetchApplications(job._id)}
-                      className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 transition-colors"
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 transition-colors"
                     >
-                      {viewingJobId === job._id ? "Hide Applications" : "View Applications"}
+                      {viewingJobId === job._id ? "Hide Quick View" : "Quick View"}
                     </button>
                   </div>
                 </div>
@@ -509,8 +518,16 @@ export default function AdminDashboard() {
                 {/* Applications Section */}
                 {viewingJobId === job._id && (
                   <div className="mt-4 border-t pt-4">
-                    <div className="flex justify-between items-center mb-3">
-                      <h4 className="text-sm font-bold text-gray-700">Ranked Applications</h4>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="text-sm font-bold text-gray-700">Applications</h4>
+                        <button
+                          onClick={() => router.push(`/admin/jobs/${job._id}`)}
+                          className="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline inline-flex items-center gap-0.5"
+                        >
+                          Open Dedicated Page & Export Excel →
+                        </button>
+                      </div>
                       <div className="flex gap-2 text-sm items-center">
                         <input type="date" id={`date-${job._id}`} className="border px-2 py-1 rounded text-xs" defaultValue={new Date().toISOString().split('T')[0]}/>
                         <input type="time" id={`time-${job._id}`} className="border px-2 py-1 rounded text-xs" defaultValue="09:00"/>

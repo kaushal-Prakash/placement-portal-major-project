@@ -128,6 +128,20 @@ router.get('/smart-feed', protect, async (req, res) => {
 });
 
 
+// GET single job details
+router.get('/:id', async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.id)
+      .populate('company')
+      .populate('allowedBranches')
+      .populate('allowedBatches');
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+    res.json(job);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // POST a new job (admin only)
 router.post('/', protect, adminOnly, async (req, res) => {
   try {

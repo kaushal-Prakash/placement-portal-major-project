@@ -121,7 +121,22 @@ router.post('/:jobId', protect, async (req, res) => {
 router.get('/job/:jobId', protect, adminOnly, async (req, res) => {
   try {
     const applications = await Application.find({ job: req.params.jobId })
-      .populate('user', 'name email cgpa resumeUrl')
+      .populate({
+        path: 'user',
+        select: 'name email usn cgpa branch batch tenthMarks twelfthMarks activeBacklogs historyOfBacklogs skills resumeUrl isPlaced isBlacklisted',
+        populate: [
+          { path: 'branch', select: 'name code' },
+          { path: 'batch', select: 'year' }
+        ]
+      })
+      .populate({
+        path: 'job',
+        populate: [
+          { path: 'company', select: 'name' },
+          { path: 'allowedBranches', select: 'name code' },
+          { path: 'allowedBatches', select: 'year' }
+        ]
+      })
       .sort({ matchScore: -1 }); // Sort by highest score first
     res.json(applications);
   } catch (error) {
