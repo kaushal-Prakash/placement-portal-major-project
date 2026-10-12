@@ -1,16 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Sparkles, Briefcase, GraduationCap, ArrowRight, BrainCircuit, Activity, BarChart4, UploadCloud } from "lucide-react";
+import { Sparkles, Briefcase, GraduationCap, ArrowRight, BrainCircuit, Activity, BarChart4 } from "lucide-react";
 
 export default function Home() {
-  const router = useRouter();
-  const [isDragging, setIsDragging] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-
   const fadeInUp = {
     hidden: { opacity: 0, y: 30 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
@@ -21,50 +15,6 @@ export default function Home() {
     visible: {
       opacity: 1,
       transition: { staggerChildren: 0.2 }
-    }
-  };
-
-  const processFile = (file) => {
-    if (!file) return;
-    setIsProcessing(true);
-    
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      // Store in sessionStorage to persist across login redirect
-      sessionStorage.setItem("pendingResumeData", reader.result);
-      sessionStorage.setItem("pendingResumeName", file.name);
-      
-      // Redirect to login
-      router.push("/login");
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      processFile(file);
-    }
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file && (file.type === "application/pdf" || file.type.includes("word"))) {
-      processFile(file);
-    } else {
-      alert("Please upload a valid PDF or Word document.");
     }
   };
 
@@ -103,57 +53,29 @@ export default function Home() {
             </span>
           </motion.div>
 
-          <motion.variants variants={fadeInUp}>
+          <motion.div variants={fadeInUp}>
             <h1 className="font-poppins text-5xl md:text-7xl lg:text-8xl font-extrabold leading-tight tracking-tight text-[#333333] mb-6">
               Get Hired with <br/> 
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#8b9a6e] to-[#6b7a4e]">
                 AI Resume Ranking
               </span>
             </h1>
-          </motion.variants>
+          </motion.div>
 
           <motion.p variants={fadeInUp} className="text-lg md:text-xl text-gray-600 mb-10 leading-relaxed max-w-2xl mx-auto font-sans">
-            Drop your resume below to instantly find matched jobs and practice with hyper-personalized AI mock interviews.
+            Instantly discover matched jobs, optimize your career profile, and practice with hyper-personalized AI mock interviews.
           </motion.p>
-
-          {/* Upload Zone */}
-          <motion.div variants={fadeInUp} className="max-w-2xl mx-auto mb-10">
-            <label 
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-3xl cursor-pointer transition-all ${
-                isDragging ? "border-[#8b9a6e] bg-[#8b9a6e]/5 scale-105" : "border-gray-300 bg-white/50 hover:bg-white/80 hover:border-[#8b9a6e]/50"
-              } backdrop-blur-sm shadow-sm`}
-            >
-              <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                <div className={`p-4 rounded-full mb-4 ${isDragging ? "bg-[#8b9a6e]/20 text-[#8b9a6e]" : "bg-gray-100 text-gray-500"}`}>
-                  <UploadCloud size={32} />
-                </div>
-                {isProcessing ? (
-                  <p className="mb-2 text-lg font-semibold text-[#8b9a6e] animate-pulse">Processing your resume...</p>
-                ) : (
-                  <>
-                    <p className="mb-2 text-lg font-semibold text-gray-700">
-                      <span className="text-[#8b9a6e]">Click to upload</span> or drag and drop
-                    </p>
-                    <p className="text-sm text-gray-500">PDF, DOC, DOCX (MAX. 5MB)</p>
-                  </>
-                )}
-              </div>
-              <input type="file" className="hidden" accept=".pdf,.doc,.docx" onChange={handleFileChange} disabled={isProcessing} />
-            </label>
-          </motion.div>
 
           <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/dashboard">
-              <button className="px-6 py-3.5 rounded-2xl font-semibold text-[#333333] bg-white/60 hover:bg-white border border-gray-200 transition-all flex items-center justify-center gap-2 w-full sm:w-auto shadow-sm hover:shadow-md">
+              <button className="px-8 py-3.5 rounded-2xl font-semibold text-white bg-[#8b9a6e] hover:bg-[#7b895e] transition-all flex items-center justify-center gap-2 w-full sm:w-auto shadow-sm hover:shadow-md">
                 <Briefcase size={18} />
-                Browse Jobs Manually
+                Browse Jobs
+                <ArrowRight size={18} />
               </button>
             </Link>
             <Link href="/alumni-experience">
-              <button className="px-6 py-3.5 rounded-2xl font-semibold text-[#333333] bg-white/60 hover:bg-white border border-gray-200 transition-all flex items-center justify-center gap-2 w-full sm:w-auto shadow-sm hover:shadow-md">
+              <button className="px-8 py-3.5 rounded-2xl font-semibold text-[#333333] bg-white/60 hover:bg-white border border-gray-200 transition-all flex items-center justify-center gap-2 w-full sm:w-auto shadow-sm hover:shadow-md">
                 <GraduationCap size={18} />
                 Learn from Alumni
               </button>
