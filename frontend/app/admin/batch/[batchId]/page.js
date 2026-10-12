@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 
 export default function BatchManagement() {
   const router = useRouter();
@@ -52,7 +53,10 @@ export default function BatchManagement() {
     <div className="min-h-screen bg-gray-50/50 p-6 sm:p-8">
       <div className="max-w-6xl mx-auto flex justify-between items-center mb-8">
         <div>
-          <button onClick={() => router.push('/admin')} className="text-sm text-gray-500 hover:text-gray-900 mb-2">&larr; Back to Admin</button>
+          <button onClick={() => router.push('/admin')} className="text-sm text-gray-500 hover:text-gray-900 mb-2 flex items-center gap-1.5 transition-colors">
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Admin</span>
+          </button>
           <h1 className="text-2xl font-poppins font-bold text-gray-900">Batch {batch.year}</h1>
           <p className="text-gray-600 text-sm">Select a branch to manage students for this batch</p>
         </div>
@@ -69,7 +73,10 @@ export default function BatchManagement() {
             >
               <h3 className="text-xl font-bold text-gray-800">{b.name}</h3>
               <p className="text-gray-500 font-medium">{b.code}</p>
-              <div className="mt-4 text-sm text-primary font-medium flex items-center gap-1">Manage Students &rarr;</div>
+              <div className="mt-4 text-sm text-[#8b9a6e] font-medium flex items-center gap-1.5">
+                <span>Manage Students</span>
+                <ArrowRight className="w-4 h-4" />
+              </div>
             </div>
           ))}
         </div>

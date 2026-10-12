@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Briefcase, GraduationCap, Building2, BarChart3, Banknote, ExternalLink, ArrowRight } from "lucide-react";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -248,12 +249,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    router.push("/login");
-  };
-
   if (!user) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-8 h-8 border-2 border-[#8b9a6e] border-t-transparent rounded-full animate-spin" />
@@ -279,13 +274,8 @@ export default function AdminDashboard() {
               onClick={() => router.push("/admin/analytics")}
               className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#8b9a6e] to-[#5b6a3e] text-white text-sm font-semibold hover:opacity-90 transition-all shadow-md flex items-center gap-2"
             >
-              📊 Analytics
-            </button>
-            <button 
-              onClick={handleLogout}
-              className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-all"
-            >
-              Logout
+              <BarChart3 className="w-4 h-4" />
+              <span>Analytics</span>
             </button>
           </div>
         </div>
@@ -293,22 +283,26 @@ export default function AdminDashboard() {
         {/* Tabs */}
         <div className="max-w-6xl mx-auto px-6 sm:px-8 flex gap-1">
           {[
-            { key: 'jobs', label: '📋 Jobs & Applications' },
-            { key: 'batches', label: '🎓 Batches & Students' },
-            { key: 'branches', label: '🏫 Global Branches' }
-          ].map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-5 py-3 text-sm font-semibold border-b-2 transition-all ${
-                activeTab === tab.key 
-                  ? 'border-[#8b9a6e] text-[#8b9a6e]' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-200'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+            { key: 'jobs', label: 'Jobs & Applications', icon: Briefcase },
+            { key: 'batches', label: 'Batches & Students', icon: GraduationCap },
+            { key: 'branches', label: 'Global Branches', icon: Building2 }
+          ].map(tab => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`px-5 py-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 ${
+                  activeTab === tab.key 
+                    ? 'border-[#8b9a6e] text-[#8b9a6e]' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-200'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
       </header>
 
@@ -467,8 +461,9 @@ export default function AdminDashboard() {
                     {/* Eligibility & Details Badges */}
                     <div className="flex flex-wrap gap-2 mb-3">
                       {job.ctc > 0 && (
-                        <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-xs font-bold">
-                          💰 {job.ctc} LPA
+                        <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-xs font-bold flex items-center gap-1">
+                          <Banknote className="w-3.5 h-3.5" />
+                          <span>{job.ctc} LPA</span>
                         </span>
                       )}
                       <span className="px-2.5 py-1 bg-orange-50 text-orange-700 border border-orange-200 rounded-md text-xs font-semibold">
@@ -495,8 +490,9 @@ export default function AdminDashboard() {
                     )}
 
                     {job.driveLink && (
-                      <a href={job.driveLink} target="_blank" rel="noreferrer" className="text-sm text-indigo-600 hover:underline mb-3 block flex items-center gap-1">
-                        🔗 View Drive Link / Job Details
+                      <a href={job.driveLink} target="_blank" rel="noreferrer" className="text-sm text-indigo-600 hover:underline mb-3 inline-flex items-center gap-1.5 font-medium">
+                        <ExternalLink className="w-4 h-4" />
+                        <span>View Drive Link / Job Details</span>
                       </a>
                     )}
                   </div>
@@ -658,7 +654,10 @@ export default function AdminDashboard() {
                 <p className={`font-medium ${b.isActive ? 'text-green-600' : 'text-gray-500'}`}>
                   {b.isActive ? 'Active' : 'Inactive'}
                 </p>
-                <div className="mt-4 text-sm text-primary font-medium flex items-center gap-1">Manage Branches &rarr;</div>
+                <div className="mt-4 text-sm text-[#8b9a6e] font-medium flex items-center gap-1.5">
+                  <span>Manage Branches</span>
+                  <ArrowRight className="w-4 h-4" />
+                </div>
               </div>
             ))}
           </div>

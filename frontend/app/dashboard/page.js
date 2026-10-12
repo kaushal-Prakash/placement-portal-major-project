@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   User, Mail, GraduationCap, Upload, FileText, CheckCircle, Search, 
   Briefcase, FileCheck, MessageSquare, Plus, Loader2, Bot, Calendar, 
-  AlertCircle, Edit3, Save, X, Star, BookOpen, TrendingUp, Award
+  AlertCircle, Edit3, Save, X, Star, BookOpen, TrendingUp, Award, Banknote
 } from "lucide-react";
 
 export default function StudentDashboard() {
@@ -792,8 +792,9 @@ export default function StudentDashboard() {
                     {/* Eligibility & Package Badges */}
                     <div className="flex flex-wrap gap-2 mb-3 relative z-10">
                       {job.ctc > 0 && (
-                        <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold">
-                          💰 {job.ctc} LPA
+                        <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold flex items-center gap-1">
+                          <Banknote className="w-3.5 h-3.5" />
+                          <span>{job.ctc} LPA</span>
                         </span>
                       )}
                       {(job.minCgpa > 0 || job.requiredCgpa > 0) && (
