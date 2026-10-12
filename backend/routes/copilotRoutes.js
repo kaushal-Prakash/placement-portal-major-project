@@ -7,6 +7,7 @@ import Job from '../models/Job.js';
 import User from '../models/User.js';
 import Feedback from '../models/Feedback.js';
 import { protect } from '../middleware/authMiddleware.js';
+import { getResumeFilePath } from '../utils/resumeHelper.js';
 
 const router = express.Router();
 
@@ -35,17 +36,19 @@ router.post('/mock-interview', protect, async (req, res) => {
     // 1. Fetch Resume Text
     let resumeText = "";
     try {
-      const filePath = path.join(process.cwd(), user.resumeUrl);
-      const formData = new FormData();
-      formData.append('file', fs.createReadStream(filePath));
+      const filePath = getResumeFilePath(user.resumeUrl);
+      if (filePath && fs.existsSync(filePath)) {
+        const formData = new FormData();
+        formData.append('file', fs.createReadStream(filePath));
 
-      const parseRes = await fetch('http://localhost:8000/api/parse-pdf', {
-        method: 'POST',
-        body: formData,
-      });
-      if (parseRes.ok) {
-        const parseData = await parseRes.json();
-        resumeText = parseData.parsed_text;
+        const parseRes = await fetch('http://localhost:8000/api/parse-pdf', {
+          method: 'POST',
+          body: formData,
+        });
+        if (parseRes.ok) {
+          const parseData = await parseRes.json();
+          resumeText = parseData.parsed_text;
+        }
       }
     } catch (e) {
       console.error("Resume parsing error in copilot", e);
@@ -108,17 +111,19 @@ router.post('/chat', protect, async (req, res) => {
     // Fetch Resume Text if available
     if (user.resumeUrl) {
       try {
-        const filePath = path.join(process.cwd(), user.resumeUrl);
-        const formData = new FormData();
-        formData.append('file', fs.createReadStream(filePath));
+        const filePath = getResumeFilePath(user.resumeUrl);
+        if (filePath && fs.existsSync(filePath)) {
+          const formData = new FormData();
+          formData.append('file', fs.createReadStream(filePath));
 
-        const parseRes = await fetch('http://localhost:8000/api/parse-pdf', {
-          method: 'POST',
-          body: formData,
-        });
-        if (parseRes.ok) {
-          const parseData = await parseRes.json();
-          resumeText = parseData.parsed_text;
+          const parseRes = await fetch('http://localhost:8000/api/parse-pdf', {
+            method: 'POST',
+            body: formData,
+          });
+          if (parseRes.ok) {
+            const parseData = await parseRes.json();
+            resumeText = parseData.parsed_text;
+          }
         }
       } catch (e) {
         console.error("Resume parsing error in copilot", e);

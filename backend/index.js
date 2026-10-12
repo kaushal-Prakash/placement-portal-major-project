@@ -54,6 +54,15 @@ app.use('/api/branches', branchRoutes);
 app.use('/api/batches', batchRoutes);
 app.use('/api/companies', companyRoutes);
 
+// Global error handling middleware - ensures all errors (e.g. Multer) return clean JSON
+app.use((err, req, res, next) => {
+  if (err) {
+    const status = err.status || (err.name === 'MulterError' ? 400 : 400);
+    return res.status(status).json({ message: err.message || 'Server error' });
+  }
+  next();
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

@@ -183,6 +183,17 @@ export default function StudentDashboard() {
     e.preventDefault();
     if (!resumeFile) return;
 
+    const allowed = ['.pdf', '.doc', '.docx'];
+    const ext = resumeFile.name.substring(resumeFile.name.lastIndexOf('.')).toLowerCase();
+    if (!allowed.includes(ext)) {
+      setUploadStatus("Only PDF, DOC, or DOCX files are allowed");
+      return;
+    }
+    if (resumeFile.size > 5 * 1024 * 1024) {
+      setUploadStatus("File exceeds 5MB size limit");
+      return;
+    }
+
     setUploadStatus("Uploading...");
     setIsUploading(true);
     const formData = new FormData();
@@ -204,11 +215,13 @@ export default function StudentDashboard() {
         localStorage.setItem("user", JSON.stringify(updatedUser));
         setShowResumeUpload(false);
         setResumeFile(null);
-        setTimeout(() => setUploadStatus(""), 3000);
+        // Refresh smart feed matches with newly uploaded resume
+        fetchData(token);
+        setTimeout(() => setUploadStatus(""), 3500);
       } else {
         setUploadStatus(data.message || "Failed to upload");
       }
-    } catch (error) {
+    } catch {
       setUploadStatus("Error uploading resume");
     } finally {
       setIsUploading(false);
@@ -487,7 +500,14 @@ export default function StudentDashboard() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setShowResumeUpload(!showResumeUpload)}
+                  onClick={() => {
+                    const next = !showResumeUpload;
+                    setShowResumeUpload(next);
+                    if (!next) {
+                      setResumeFile(null);
+                      setUploadStatus("");
+                    }
+                  }}
                   className="text-xs px-2.5 py-1 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg text-gray-700 font-medium transition shrink-0"
                 >
                   {showResumeUpload ? "Cancel" : user.resumeUrl ? "Replace" : "Upload"}
@@ -501,7 +521,24 @@ export default function StudentDashboard() {
                     type="file"
                     accept=".pdf,.doc,.docx"
                     id="resume-upload"
-                    onChange={(e) => setResumeFile(e.target.files[0])}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const allowed = ['.pdf', '.doc', '.docx'];
+                      const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+                      if (!allowed.includes(ext)) {
+                        setUploadStatus("Only PDF, DOC, or DOCX files are allowed");
+                        setResumeFile(null);
+                        return;
+                      }
+                      if (file.size > 5 * 1024 * 1024) {
+                        setUploadStatus("File exceeds 5MB limit");
+                        setResumeFile(null);
+                        return;
+                      }
+                      setUploadStatus("");
+                      setResumeFile(file);
+                    }}
                     className="hidden"
                   />
                   <label
@@ -817,8 +854,6 @@ export default function StudentDashboard() {
             </motion.div>
           )}
         </div>
-      </main>
-iv>
       </main>
 
       {/* Floating AI Copilot Button */}

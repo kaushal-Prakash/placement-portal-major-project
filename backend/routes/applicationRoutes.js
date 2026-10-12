@@ -8,6 +8,7 @@ import Job from '../models/Job.js';
 import User from '../models/User.js';
 import { protect, adminOnly } from '../middleware/authMiddleware.js';
 import { evaluateApplicationRules } from '../utils/rulesEngine.js';
+import { getResumeFilePath } from '../utils/resumeHelper.js';
 
 const router = express.Router();
 
@@ -56,9 +57,10 @@ router.post('/:jobId', protect, async (req, res) => {
     let aiFeedback = "AI matching failed.";
 
     try {
-      // The resume path relative to the backend root
-      // e.g. /uploads/1628192837-resume.pdf -> uploads/1628192837-resume.pdf
-      const filePath = path.join(process.cwd(), user.resumeUrl);
+      const filePath = getResumeFilePath(user.resumeUrl);
+      if (!filePath || !fs.existsSync(filePath)) {
+        throw new Error('Resume file not found on server');
+      }
 
       // Parse PDF using FastAPI
       const formData = new FormData();

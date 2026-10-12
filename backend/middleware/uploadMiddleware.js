@@ -1,52 +1,61 @@
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadDir = path.resolve(__dirname, '../uploads');
+
+// Ensure upload directory exists immediately on load
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 /**
- * Configure the storage engine for multer.
- * This determines where uploaded files are stored and how they are named.
+ * Configure storage engine for multer.
  */
 const storage = multer.diskStorage({
-  // Specify the destination directory for uploaded files
   destination: function (req, file, cb) {
-    // Files will be saved in the 'uploads/' directory in the backend
-    cb(null, 'uploads/'); 
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir); 
   },
-  // Define the filename structure to avoid naming conflicts
   filename: function (req, file, cb) {
-    // Append the current timestamp to the original filename to make it unique
-    cb(null, `${Date.now()}-${file.originalname}`);
+    // Sanitize filename to avoid URL breaking characters (#, spaces, ?, etc.)
+    const cleanName = path.basename(file.originalname).replace(/[^a-zA-Z0-9.-]/g, '_');
+    cb(null, `${Date.now()}-${cleanName}`);
   }
 });
 
 /**
- * Create the multer upload instance.
- * It uses the storage configuration and applies file size limits and file type filtering.
+ * Multer upload instance with size limits and robust file filter.
  */
 const upload = multer({
   storage: storage,
   limits: {
-    // Limit file size to 5MB to prevent abuse and save storage space
-    fileSize: 5 * 1024 * 1024 
+    fileSize: 5 * 1024 * 1024 // 5MB limit
   },
-  // Add file filtering to ensure only certain file types (e.g., resumes) are uploaded
   fileFilter: function (req, file, cb) {
-    // Define allowed file extensions using a regular expression
-    const filetypes = /pdf|doc|docx/; 
-    
-    // Check if the uploaded file's extension matches the allowed extensions
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-    
-    // Check if the uploaded file's mimetype matches the allowed types
-    const mimetype = filetypes.test(file.mimetype);
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedExts = ['.pdf', '.doc', '.docx'];
 
-    // If both extension and mimetype are valid, accept the file
-    if (extname && mimetype) {
+    const allowedMimeTypes = [
+      'application/pdf',
+      'application/x-pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/octet-stream'
+    ];
+
+    if (allowedExts.includes(ext) && (allowedMimeTypes.includes(file.mimetype) || file.mimetype.startsWith('application/'))) {
       return cb(null, true);
     } else {
-      // Otherwise, reject the file with an error
-      cb(new Error('Error: Only resumes (PDF, DOC, DOCX) are allowed!'));
+      cb(new Error('Only resumes in PDF, DOC, or DOCX format are allowed!'));
     }
   }
 });
 
 export default upload;
+export { uploadDir };

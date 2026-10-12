@@ -10,7 +10,17 @@ const router = express.Router();
  * @desc Upload a resume file
  * @access Private (Requires valid JWT token)
  */
-router.post('/resume', protect, upload.single('resume'), async (req, res) => {
+router.post('/resume', protect, (req, res, next) => {
+  upload.single('resume')(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ message: 'File is too large. Maximum size allowed is 5MB.' });
+      }
+      return res.status(400).json({ message: err.message || 'Error uploading file' });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded or invalid file format' });

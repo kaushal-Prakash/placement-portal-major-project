@@ -41,7 +41,12 @@ router.get('/smart-feed', protect, async (req, res) => {
     const fetch = (await import('node-fetch')).default;
     const FormData = (await import('form-data')).default;
 
-    const filePath = path.join(process.cwd(), user.resumeUrl);
+    const { getResumeFilePath } = await import('../utils/resumeHelper.js');
+    const filePath = getResumeFilePath(user.resumeUrl);
+    if (!filePath || !fs.existsSync(filePath)) {
+      return res.json(jobs.sort((a, b) => b.createdAt - a.createdAt));
+    }
+
     const formData = new FormData();
     formData.append('file', fs.createReadStream(filePath));
 
