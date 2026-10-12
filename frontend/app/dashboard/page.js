@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { User, Mail, GraduationCap, Upload, FileText, CheckCircle, Search, Briefcase, FileCheck, MessageSquare, Plus, Loader2, Bot } from "lucide-react";
+import { User, Mail, GraduationCap, Upload, FileText, CheckCircle, Search, Briefcase, FileCheck, MessageSquare, Plus, Loader2, Bot, Calendar, AlertCircle } from "lucide-react";
 
 export default function StudentDashboard() {
   const router = useRouter();
@@ -12,6 +12,7 @@ export default function StudentDashboard() {
   const [uploadStatus, setUploadStatus] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [myApplications, setMyApplications] = useState([]);
+  const [mySlots, setMySlots] = useState([]);
   const [applyingJobId, setApplyingJobId] = useState(null);
 
   const fetchData = async (token) => {
@@ -29,9 +30,56 @@ export default function StudentDashboard() {
       });
       const appsData = await appsRes.json();
       if (appsRes.ok) setMyApplications(appsData);
+
+      // Fetch upcoming interview slots
+      const slotsRes = await fetch("http://localhost:5001/api/interviews/student/my-slots", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (slotsRes.ok) {
+        const slotsData = await slotsRes.json();
+        setMySlots(slotsData);
+      }
     } catch (err) {
       console.error("Error fetching data:", err);
     }
+  };
+
+  const checkEligibility = (job) => {
+    if (!user) return { eligible: true };
+    if (user.isBlacklisted) {
+      return { eligible: false, reason: "Blacklisted from placements" };
+    }
+    if (user.isPlaced) {
+      const minPackage = (user.currentCTC || 0) * 1.5;
+      if ((job.ctc || 0) < minPackage) {
+        return { 
+          eligible: false, 
+          reason: `Placed: Requires Dream CTC ≥ ${minPackage.toFixed(1)} LPA` 
+        };
+      }
+    }
+    const minCgpa = job.minCgpa ?? job.requiredCgpa ?? 0;
+    if (minCgpa > 0 && (user.cgpa === null || user.cgpa === undefined || user.cgpa < minCgpa)) {
+      return { eligible: false, reason: `Min CGPA ${minCgpa} required` };
+    }
+    if (job.maxBacklogs !== undefined && job.maxBacklogs !== null && (user.activeBacklogs || 0) > job.maxBacklogs) {
+      return { eligible: false, reason: `Max ${job.maxBacklogs} active backlog(s) allowed` };
+    }
+    if (job.allowedBranches && job.allowedBranches.length > 0 && user.branch) {
+      const userBranchId = (user.branch._id || user.branch).toString();
+      const isAllowed = job.allowedBranches.some(b => (b._id || b).toString() === userBranchId);
+      if (!isAllowed) {
+        return { eligible: false, reason: "Academic branch not eligible" };
+      }
+    }
+    if (job.allowedBatches && job.allowedBatches.length > 0 && user.batch) {
+      const userBatchId = (user.batch._id || user.batch).toString();
+      const isAllowed = job.allowedBatches.some(b => (b._id || b).toString() === userBatchId);
+      if (!isAllowed) {
+        return { eligible: false, reason: "Batch year not eligible" };
+      }
+    }
+    return { eligible: true };
   };
 
   const checkAndUploadPendingResume = async (token, currentUser) => {
@@ -353,6 +401,36 @@ export default function StudentDashboard() {
               </div>
             )}
           </motion.div>
+
+          {/* Upcoming Interviews Card */}
+          {mySlots.length > 0 && (
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.25 }}
+              className="bg-white/60 backdrop-blur-xl p-8 rounded-3xl shadow-xl border border-white/50"
+            >
+              <h2 className="text-xl font-bold mb-4 text-gray-900 flex items-center justify-between">
+                <span className="flex items-center gap-2 text-indigo-700">
+                  <Calendar className="w-5 h-5 text-indigo-600" />
+                  Upcoming Interviews
+                </span>
+                <span className="text-xs px-2.5 py-1 bg-indigo-600 text-white rounded-full font-bold">{mySlots.length}</span>
+              </h2>
+              <div className="space-y-3">
+                {mySlots.map(slot => (
+                  <div key={slot._id} className="p-3.5 bg-indigo-50/60 rounded-2xl border border-indigo-100">
+                    <p className="font-bold text-gray-900 text-sm">{slot.job?.title || 'Scheduled Interview'}</p>
+                    <p className="text-xs text-indigo-600 font-medium mb-1.5">{slot.job?.company?.name || slot.job?.company || 'Company'}</p>
+                    <div className="text-xs text-gray-600 flex items-center gap-2">
+                      <span>📅 {new Date(slot.startTime).toLocaleDateString()}</span>
+                      <span>⏰ {new Date(slot.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
         </div>
 
         {/* Right Content: Recommended Jobs */}
@@ -365,7 +443,7 @@ export default function StudentDashboard() {
           >
             <div>
               <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Recommended Jobs</h2>
-              <p className="text-gray-600 mt-1">Smart matches based on your profile</p>
+              <p className="text-gray-600 mt-1">Smart matches based on your profile & academic eligibility</p>
             </div>
           </motion.div>
           
@@ -379,6 +457,7 @@ export default function StudentDashboard() {
               {jobs.map(job => {
                 const hasApplied = appliedJobIds.has(job._id);
                 const isApplying = applyingJobId === job._id;
+                const eligibility = checkEligibility(job);
 
                 return (
                   <motion.div 
@@ -389,9 +468,9 @@ export default function StudentDashboard() {
                     {/* Decorative gradient blob inside card */}
                     <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#8b9a6e]/10 to-transparent rounded-full -mr-10 -mt-10 blur-xl"></div>
                     
-                    <div className="flex justify-between items-start mb-6 relative z-10">
+                    <div className="flex justify-between items-start mb-4 relative z-10">
                       <div>
-                        <h3 className="text-xl font-bold text-gray-900 mb-2 leading-tight group-hover:text-[#8b9a6e] transition-colors">{job.title}</h3>
+                        <h3 className="text-xl font-bold text-gray-900 mb-1 leading-tight group-hover:text-[#8b9a6e] transition-colors">{job.title}</h3>
                         <p className="text-gray-600 font-medium text-sm flex items-center gap-1.5">
                           <Briefcase className="w-4 h-4 text-gray-400" />
                           {job.company?.name || job.company}
@@ -406,11 +485,43 @@ export default function StudentDashboard() {
                         </div>
                       )}
                     </div>
+
+                    {/* Eligibility & Package Badges */}
+                    <div className="flex flex-wrap gap-2 mb-3 relative z-10">
+                      {job.ctc > 0 && (
+                        <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold">
+                          💰 {job.ctc} LPA
+                        </span>
+                      )}
+                      {(job.minCgpa > 0 || job.requiredCgpa > 0) && (
+                        <span className="px-2.5 py-1 bg-orange-50 text-orange-700 border border-orange-200 rounded-lg text-xs font-semibold">
+                          Min CGPA: {job.minCgpa ?? job.requiredCgpa}
+                        </span>
+                      )}
+                      <span className="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-semibold">
+                        Backlogs ≤ {job.maxBacklogs ?? 0}
+                      </span>
+                    </div>
+
+                    {/* Eligibility Status Notice */}
+                    <div className="mb-4 relative z-10">
+                      {!eligibility.eligible ? (
+                        <div className="px-3 py-1.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold flex items-center gap-1.5">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          <span>Ineligible: {eligibility.reason}</span>
+                        </div>
+                      ) : (
+                        <div className="px-3 py-1 bg-emerald-50/80 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-semibold flex items-center gap-1 w-fit">
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          <span>Eligible to Apply</span>
+                        </div>
+                      )}
+                    </div>
                     
                     <p className="text-gray-600 text-sm mb-6 line-clamp-3 leading-relaxed flex-grow relative z-10">{job.description}</p>
                     
                     <div className="flex flex-wrap gap-2 mb-8 relative z-10">
-                      {job.requiredSkills.map(skill => (
+                      {(job.requirements || job.requiredSkills || []).map(skill => (
                          <span key={skill} className="px-3 py-1.5 bg-white text-gray-700 rounded-lg text-xs font-semibold shadow-sm border border-gray-100">
                           {skill}
                         </span>
@@ -422,6 +533,11 @@ export default function StudentDashboard() {
                         <button disabled className="w-full py-3.5 rounded-xl bg-gray-100/80 text-gray-400 font-bold cursor-not-allowed border border-gray-200 flex items-center justify-center gap-2">
                           <CheckCircle className="w-5 h-5" />
                           Applied
+                        </button>
+                      ) : !eligibility.eligible ? (
+                        <button disabled className="w-full py-3.5 rounded-xl bg-gray-100 text-gray-400 font-bold cursor-not-allowed border border-gray-200 flex items-center justify-center gap-2">
+                          <AlertCircle className="w-5 h-5" />
+                          Ineligible to Apply
                         </button>
                       ) : (
                         <button 

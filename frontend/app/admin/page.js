@@ -319,25 +319,100 @@ export default function AdminDashboard() {
                 value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}
               />
             </div>
-            <div className="flex gap-4">
-              <div className="w-1/2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Min CGPA</label>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Min CGPA</label>
                 <input 
                   type="number" step="0.1" required
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary outline-none"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#8b9a6e] outline-none"
                   value={formData.requiredCgpa} onChange={e => setFormData({...formData, requiredCgpa: e.target.value})}
                 />
               </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">CTC (LPA)</label>
+                <input 
+                  type="number" step="0.1" required
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#8b9a6e] outline-none"
+                  value={formData.ctc} onChange={e => setFormData({...formData, ctc: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Max Backlogs</label>
+                <input 
+                  type="number" step="1" min="0" required
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#8b9a6e] outline-none"
+                  value={formData.maxBacklogs} onChange={e => setFormData({...formData, maxBacklogs: e.target.value})}
+                />
+              </div>
             </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Eligible Branches (Leave empty for all)</label>
+              <div className="flex flex-wrap gap-1.5 p-2 bg-gray-50 rounded-lg border border-gray-200 max-h-28 overflow-y-auto">
+                {branches.map(b => {
+                  const isSelected = formData.allowedBranches.includes(b._id);
+                  return (
+                    <button
+                      key={b._id}
+                      type="button"
+                      onClick={() => {
+                        const updated = isSelected 
+                          ? formData.allowedBranches.filter(id => id !== b._id)
+                          : [...formData.allowedBranches, b._id];
+                        setFormData({...formData, allowedBranches: updated});
+                      }}
+                      className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all ${
+                        isSelected 
+                          ? 'bg-[#8b9a6e] text-white shadow-sm' 
+                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      {b.code || b.name}
+                    </button>
+                  );
+                })}
+                {branches.length === 0 && <span className="text-xs text-gray-400 italic">No branches found</span>}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Eligible Batches (Leave empty for all)</label>
+              <div className="flex flex-wrap gap-1.5 p-2 bg-gray-50 rounded-lg border border-gray-200 max-h-24 overflow-y-auto">
+                {batches.map(b => {
+                  const isSelected = formData.allowedBatches.includes(b._id);
+                  return (
+                    <button
+                      key={b._id}
+                      type="button"
+                      onClick={() => {
+                        const updated = isSelected 
+                          ? formData.allowedBatches.filter(id => id !== b._id)
+                          : [...formData.allowedBatches, b._id];
+                        setFormData({...formData, allowedBatches: updated});
+                      }}
+                      className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all ${
+                        isSelected 
+                          ? 'bg-gray-900 text-white shadow-sm' 
+                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      Batch {b.year}
+                    </button>
+                  );
+                })}
+                {batches.length === 0 && <span className="text-xs text-gray-400 italic">No batches found</span>}
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Required Skills (comma separated)</label>
               <input 
                 type="text" required placeholder="e.g. React, Node.js, MongoDB"
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary outline-none"
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#8b9a6e] outline-none"
                 value={formData.requiredSkills} onChange={e => setFormData({...formData, requiredSkills: e.target.value})}
               />
             </div>
-            <button type="submit" className="mt-2 w-full py-2.5 rounded-lg bg-gray-900 hover:bg-gray-800 text-white font-medium transition-colors">
+            <button type="submit" className="mt-2 w-full py-2.5 rounded-lg bg-gray-900 hover:bg-gray-800 text-white font-medium transition-colors shadow-md">
               Post Job
             </button>
           </form>
@@ -354,13 +429,37 @@ export default function AdminDashboard() {
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
                     <p className="text-primary font-medium mb-2">{job.company?.name || job.company}</p>
+                    
+                    {/* Eligibility & Details Badges */}
                     <div className="flex flex-wrap gap-2 mb-3">
-                      {job.requiredSkills.map(skill => (
-                        <span key={skill} className="px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs font-medium">
+                      {job.ctc > 0 && (
+                        <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-xs font-bold">
+                          💰 {job.ctc} LPA
+                        </span>
+                      )}
+                      <span className="px-2.5 py-1 bg-orange-50 text-orange-700 border border-orange-200 rounded-md text-xs font-semibold">
+                        Min CGPA: {job.minCgpa ?? job.requiredCgpa}
+                      </span>
+                      <span className="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-md text-xs font-semibold">
+                        Max Backlogs: {job.maxBacklogs ?? 0}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {(job.requirements || job.requiredSkills || []).map(skill => (
+                        <span key={skill} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-md text-xs font-medium">
                           {skill}
                         </span>
                       ))}
                     </div>
+
+                    {job.allowedBranches && job.allowedBranches.length > 0 && (
+                      <div className="text-xs text-gray-500 mb-2">
+                        <span className="font-semibold text-gray-700">Eligible Branches: </span>
+                        {job.allowedBranches.map(b => b.code || b.name).join(", ")}
+                      </div>
+                    )}
+
                     {job.driveLink && (
                       <a href={job.driveLink} target="_blank" rel="noreferrer" className="text-sm text-indigo-600 hover:underline mb-3 block flex items-center gap-1">
                         🔗 View Drive Link / Job Details
@@ -368,13 +467,9 @@ export default function AdminDashboard() {
                     )}
                   </div>
                   <div className="text-right">
-                    <span className="inline-block px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold mb-2">
-                      Min CGPA: {job.requiredCgpa}
-                    </span>
-                    <br/>
                     <button 
                       onClick={() => fetchApplications(job._id)}
-                      className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+                      className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 transition-colors"
                     >
                       {viewingJobId === job._id ? "Hide Applications" : "View Applications"}
                     </button>
@@ -387,15 +482,15 @@ export default function AdminDashboard() {
                     <div className="flex justify-between items-center mb-3">
                       <h4 className="text-sm font-bold text-gray-700">Ranked Applications</h4>
                       <div className="flex gap-2 text-sm items-center">
-                        <input type="date" id={`date-${job._id}`} className="border px-2 py-1 rounded" defaultValue={new Date().toISOString().split('T')[0]}/>
-                        <input type="time" id={`time-${job._id}`} className="border px-2 py-1 rounded" defaultValue="09:00"/>
+                        <input type="date" id={`date-${job._id}`} className="border px-2 py-1 rounded text-xs" defaultValue={new Date().toISOString().split('T')[0]}/>
+                        <input type="time" id={`time-${job._id}`} className="border px-2 py-1 rounded text-xs" defaultValue="09:00"/>
                         <button 
                           onClick={() => {
                             const date = document.getElementById(`date-${job._id}`).value;
                             const time = document.getElementById(`time-${job._id}`).value;
                             handleSchedule(job._id, date, time);
                           }}
-                          className="px-3 py-1 bg-primary text-white rounded font-medium hover:bg-primary/90"
+                          className="px-3 py-1 bg-primary text-white text-xs rounded font-medium hover:bg-primary/90"
                         >
                           Auto-Schedule
                         </button>
@@ -429,8 +524,24 @@ export default function AdminDashboard() {
                                     {app.matchScore ? `${app.matchScore}%` : 'N/A'}
                                   </span>
                                 </td>
-                                <td className="px-4 py-2 font-semibold">
-                                  {app.status}
+                                <td className="px-4 py-2">
+                                  <select
+                                    value={app.status?.toLowerCase() || 'applied'}
+                                    onChange={(e) => handleUpdateApplicationStatus(app._id, job._id, e.target.value)}
+                                    className={`text-xs font-semibold px-2 py-1 rounded-md border outline-none cursor-pointer transition-colors ${
+                                      app.status?.toLowerCase() === 'placed' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                                      app.status?.toLowerCase() === 'shortlisted' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                                      app.status?.toLowerCase() === 'interviewing' ? 'bg-purple-100 text-purple-800 border-purple-300' :
+                                      app.status?.toLowerCase() === 'rejected' ? 'bg-red-100 text-red-800 border-red-300' :
+                                      'bg-gray-100 text-gray-800 border-gray-300'
+                                    }`}
+                                  >
+                                    <option value="applied">Applied</option>
+                                    <option value="shortlisted">Shortlisted</option>
+                                    <option value="interviewing">Interviewing</option>
+                                    <option value="placed">Placed</option>
+                                    <option value="rejected">Rejected</option>
+                                  </select>
                                 </td>
                                 <td className="px-4 py-2">
                                   {app.user?.resumeUrl ? (
