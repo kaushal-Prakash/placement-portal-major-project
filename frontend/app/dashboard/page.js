@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   User, Mail, GraduationCap, Upload, FileText, CheckCircle, Search, 
   Briefcase, FileCheck, MessageSquare, Plus, Loader2, Bot, Calendar, 
-  AlertCircle, Edit3, Save, X, Star, BookOpen, TrendingUp, Award, Banknote, Lock
+  AlertCircle, Edit3, Save, X, Star, BookOpen, TrendingUp, Award, Banknote, Lock,
+  ExternalLink, Clock, Users
 } from "lucide-react";
 
 export default function StudentDashboard() {
@@ -18,6 +19,8 @@ export default function StudentDashboard() {
   const [myApplications, setMyApplications] = useState([]);
   const [mySlots, setMySlots] = useState([]);
   const [applyingJobId, setApplyingJobId] = useState(null);
+  const [activityTab, setActivityTab] = useState("applications"); // 'applications' | 'interviews'
+  const [showResumeUpload, setShowResumeUpload] = useState(false);
 
   // Profile edit state
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -199,6 +202,8 @@ export default function StudentDashboard() {
         const updatedUser = { ...user, resumeUrl: data.filePath };
         setUser(updatedUser);
         localStorage.setItem("user", JSON.stringify(updatedUser));
+        setShowResumeUpload(false);
+        setResumeFile(null);
         setTimeout(() => setUploadStatus(""), 3000);
       } else {
         setUploadStatus(data.message || "Failed to upload");
@@ -301,32 +306,39 @@ export default function StudentDashboard() {
       <div className="absolute top-[-10%] left-[-5%] w-[40vw] h-[40vw] bg-[#8b9a6e]/10 rounded-full blur-[100px] pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-5%] w-[40vw] h-[40vw] bg-[#eae2d6]/40 rounded-full blur-[100px] pointer-events-none"></div>
 
-      <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-10">
+      <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10">
         
-        {/* Left Sidebar */}
-        <div className="lg:col-span-4 space-y-6">
+        {/* Left Sidebar (Unified Profile & Resume, then Tabbed Activity Hub) */}
+        <div className="lg:col-span-4 space-y-4">
           
-          {/* Profile Card */}
+          {/* Card 1: Unified Profile, Stats, Skills & Resume */}
           <motion.div 
-            initial={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 0, x: -15 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-            className="bg-white/60 backdrop-blur-xl p-8 rounded-3xl shadow-xl border border-white/50"
+            transition={{ duration: 0.4 }}
+            className="bg-white/70 backdrop-blur-xl p-5 rounded-2xl shadow-lg border border-white/60"
           >
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#8b9a6e] to-[#6b7a4e] flex items-center justify-center text-white text-2xl font-bold shadow-lg shrink-0">
+            {/* Header: Avatar, Name, Badges, Edit Button */}
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#8b9a6e] to-[#6b7a4e] flex items-center justify-center text-white text-xl font-bold shadow-md shrink-0">
                   {user.name.charAt(0).toUpperCase()}
                 </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 leading-tight">{user.name}</h2>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="inline-block px-3 py-0.5 bg-[#8b9a6e]/10 text-[#8b9a6e] rounded-full text-xs font-semibold uppercase tracking-wider">
+                <div className="min-w-0">
+                  <h2 className="text-base font-bold text-gray-900 truncate leading-tight">{user.name}</h2>
+                  <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    <span className="px-2 py-0.5 bg-[#8b9a6e]/10 text-[#5b6a3e] rounded-md text-[10px] font-bold uppercase tracking-wider">
                       Student
                     </span>
                     {user.isPlaced && (
-                      <span className="inline-block px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">
+                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md text-[10px] font-bold">
                         ✓ Placed
+                      </span>
+                    )}
+                    {user.usn && (
+                      <span className="text-[11px] text-gray-400 font-medium truncate">
+                        · {user.usn}
                       </span>
                     )}
                   </div>
@@ -343,386 +355,331 @@ export default function StudentDashboard() {
                     setIsEditingProfile(true);
                   }
                 }}
-                className={`p-2.5 rounded-xl transition-all ${isEditingProfile ? "bg-red-50 text-red-500 hover:bg-red-100" : "bg-gray-100 text-gray-500 hover:bg-[#8b9a6e]/10 hover:text-[#8b9a6e]"}`}
+                className={`p-2 rounded-xl transition-all shrink-0 ${isEditingProfile ? "bg-red-50 text-red-500 hover:bg-red-100" : "bg-gray-100/80 text-gray-500 hover:bg-[#8b9a6e]/10 hover:text-[#8b9a6e]"}`}
                 title={isEditingProfile ? "Cancel editing" : "Edit skills"}
               >
                 {isEditingProfile ? <X className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
               </button>
             </div>
 
-            {/* Static Info */}
-            <div className="space-y-3 mb-4">
-              <div className="flex items-center gap-3 text-gray-600 bg-white/50 p-3 rounded-2xl border border-white/50">
-                <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500 shrink-0">
-                  <Mail className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Email</p>
-                  <p className="font-medium text-gray-900 text-sm truncate">{user.email}</p>
-                </div>
+            {/* Academic Branch / Batch Info */}
+            {(user.branch || user.batch) && (
+              <p className="text-xs text-gray-500 bg-gray-50/70 px-3 py-1.5 rounded-lg border border-gray-100 mb-3 truncate">
+                <span className="font-semibold text-gray-700">{user.branch?.name || user.branch?.code || "Branch"}</span>
+                {user.batch?.year ? ` · Batch of ${user.batch.year}` : ""}
+              </p>
+            )}
+
+            {/* Academic Metrics Grid (4 compact stat cards) */}
+            <div className="grid grid-cols-4 gap-2 mb-3">
+              <div className="bg-amber-50/60 border border-amber-100/80 rounded-xl p-2 text-center">
+                <p className="text-[10px] text-gray-500 font-medium">CGPA</p>
+                <p className={`text-sm font-bold ${cgpaColor}`}>{user.cgpa ?? '—'}</p>
               </div>
-
-              {user.usn && (
-                <div className="flex items-center gap-3 text-gray-600 bg-white/50 p-3 rounded-2xl border border-white/50">
-                  <div className="w-9 h-9 rounded-xl bg-purple-50 flex items-center justify-center text-purple-500 shrink-0">
-                    <Award className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">USN</p>
-                    <p className="font-medium text-gray-900 text-sm">{user.usn}</p>
-                  </div>
-                </div>
-              )}
-
-              {(user.branch || user.batch) && (
-                <div className="flex items-center gap-3 text-gray-600 bg-white/50 p-3 rounded-2xl border border-white/50">
-                  <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500 shrink-0">
-                    <BookOpen className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Academic</p>
-                    <p className="font-medium text-gray-900 text-sm">
-                      {user.branch?.code || user.branch?.name || ""}{user.branch && user.batch ? " · " : ""}
-                      {user.batch?.year ? `Batch ${user.batch.year}` : ""}
-                    </p>
-                  </div>
-                </div>
-              )}
+              <div className="bg-blue-50/60 border border-blue-100/80 rounded-xl p-2 text-center">
+                <p className="text-[10px] text-gray-500 font-medium">Backlogs</p>
+                <p className="text-sm font-bold text-gray-800">{user.activeBacklogs ?? '0'}</p>
+              </div>
+              <div className="bg-purple-50/60 border border-purple-100/80 rounded-xl p-2 text-center">
+                <p className="text-[10px] text-gray-500 font-medium">10th</p>
+                <p className="text-sm font-bold text-gray-800">{user.tenthMarks ? `${user.tenthMarks}%` : '—'}</p>
+              </div>
+              <div className="bg-emerald-50/60 border border-emerald-100/80 rounded-xl p-2 text-center">
+                <p className="text-[10px] text-gray-500 font-medium">12th</p>
+                <p className="text-sm font-bold text-gray-800">{user.twelfthMarks ? `${user.twelfthMarks}%` : '—'}</p>
+              </div>
             </div>
 
-            {/* Editable Profile Section */}
+            {/* Skills View / Inline Edit */}
             <AnimatePresence mode="wait">
               {isEditingProfile ? (
                 <motion.div
-                  key="edit"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="space-y-4 pt-4 border-t border-gray-100"
+                  key="edit-skills"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-2 pt-2 border-t border-gray-100"
                 >
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Update Skills</p>
-                    <span className="text-[11px] text-gray-400 flex items-center gap-1 font-medium bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
-                      <Lock className="w-3 h-3 text-amber-500" />
-                      Academics managed by Admin
+                    <span className="text-xs font-bold text-gray-700">Update Skills</span>
+                    <span className="text-[10px] text-gray-400 flex items-center gap-1 font-medium bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
+                      <Lock className="w-2.5 h-2.5 text-amber-500" />
+                      Academics locked
                     </span>
                   </div>
-
-                  <div>
-                    <label className="text-xs text-gray-600 font-medium block mb-1">
-                      Professional & Technical Skills
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={editForm.skills}
-                      onChange={e => setEditForm({ ...editForm, skills: e.target.value })}
-                      placeholder="e.g. React, Node.js, Python, TypeScript, Docker, SQL"
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8b9a6e] focus:border-transparent outline-none bg-white resize-none shadow-inner"
-                    />
-                    <p className="text-[11px] text-gray-400 mt-1">Separate individual skills with commas</p>
-                  </div>
-
-                  {/* Real-time live tags preview */}
+                  <textarea
+                    rows={2}
+                    value={editForm.skills}
+                    onChange={e => setEditForm({ ...editForm, skills: e.target.value })}
+                    placeholder="React, Node.js, Python, SQL..."
+                    className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8b9a6e] outline-none bg-white resize-none"
+                  />
                   {editForm.skills && (
-                    <div>
-                      <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider mb-1.5">Live Preview</p>
-                      <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                        {editForm.skills.split(",").map(s => s.trim()).filter(Boolean).map((skill, idx) => (
-                          <span key={idx} className="px-2.5 py-0.5 bg-[#8b9a6e]/10 text-[#5b6a3e] rounded-lg text-xs font-semibold border border-[#8b9a6e]/20">
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
+                    <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto">
+                      {editForm.skills.split(",").map(s => s.trim()).filter(Boolean).map((s, i) => (
+                        <span key={i} className="px-2 py-0.5 bg-[#8b9a6e]/10 text-[#5b6a3e] rounded-md text-[10px] font-semibold">
+                          {s}
+                        </span>
+                      ))}
                     </div>
                   )}
-
                   <button
                     onClick={handleSaveProfile}
                     disabled={isSavingProfile}
-                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#8b9a6e] to-[#6b7a4e] text-white font-semibold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-60 shadow-lg shadow-[#8b9a6e]/20"
+                    className="w-full py-2 rounded-xl bg-gradient-to-r from-[#8b9a6e] to-[#6b7a4e] text-white font-semibold text-xs flex items-center justify-center gap-1.5 hover:opacity-90 disabled:opacity-60 transition shadow-sm"
                   >
-                    {isSavingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    {isSavingProfile ? "Saving Skills..." : "Save Skills"}
+                    {isSavingProfile ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    {isSavingProfile ? "Saving..." : "Save Skills"}
                   </button>
                 </motion.div>
               ) : (
-                <motion.div
-                  key="view"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="space-y-3 pt-4 border-t border-gray-100"
-                >
-                  {/* Stats Grid */}
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-3 text-center border border-amber-100">
-                      <GraduationCap className="w-4 h-4 text-amber-500 mx-auto mb-1" />
-                      <p className={`text-lg font-bold ${cgpaColor}`}>{user.cgpa ?? '—'}</p>
-                      <p className="text-xs text-gray-500">CGPA</p>
-                    </div>
-                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-3 text-center border border-blue-100">
-                      <TrendingUp className="w-4 h-4 text-blue-500 mx-auto mb-1" />
-                      <p className="text-lg font-bold text-gray-900">{user.activeBacklogs ?? '0'}</p>
-                      <p className="text-xs text-gray-500">Backlogs</p>
-                    </div>
-                    <div className="bg-gradient-to-br from-[#8b9a6e]/10 to-[#8b9a6e]/5 rounded-2xl p-3 text-center border border-[#8b9a6e]/20">
-                      <Star className="w-4 h-4 text-[#8b9a6e] mx-auto mb-1" />
-                      <p className="text-lg font-bold text-gray-900">{myApplications.length}</p>
-                      <p className="text-xs text-gray-500">Applied</p>
-                    </div>
+                <div className="pt-2 border-t border-gray-100">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Skills</span>
+                    <button
+                      onClick={() => {
+                        setEditForm({ skills: Array.isArray(user.skills) ? user.skills.join(", ") : (user.skills || "") });
+                        setIsEditingProfile(true);
+                      }}
+                      className="text-[11px] text-[#8b9a6e] hover:underline font-medium flex items-center gap-0.5"
+                    >
+                      <Edit3 className="w-3 h-3" /> Edit
+                    </button>
                   </div>
-
-                  {/* Skills */}
-                  {user.skills && user.skills.length > 0 && (
-                    <div>
-                      <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-2">Skills</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {(Array.isArray(user.skills) ? user.skills : [user.skills]).slice(0, 8).map((skill, i) => (
-                          <span key={i} className="px-2.5 py-1 bg-white text-gray-700 rounded-lg text-xs font-semibold border border-gray-100 shadow-sm">
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Marks */}
-                  {(user.tenthMarks || user.twelfthMarks) && (
-                    <div className="grid grid-cols-2 gap-2">
-                      {user.tenthMarks && (
-                        <div className="bg-white/50 rounded-xl p-2.5 border border-white/50">
-                          <p className="text-xs text-gray-400">10th %</p>
-                          <p className="font-bold text-gray-800">{user.tenthMarks}%</p>
-                        </div>
-                      )}
-                      {user.twelfthMarks && (
-                        <div className="bg-white/50 rounded-xl p-2.5 border border-white/50">
-                          <p className="text-xs text-gray-400">12th %</p>
-                          <p className="font-bold text-gray-800">{user.twelfthMarks}%</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <button
-                    onClick={() => {
-                      setEditForm({
-                        skills: Array.isArray(user.skills) ? user.skills.join(", ") : (user.skills || ""),
-                      });
-                      setIsEditingProfile(true);
-                    }}
-                    className="w-full py-2 rounded-xl border-2 border-dashed border-[#8b9a6e]/30 text-[#8b9a6e] text-sm font-medium hover:bg-[#8b9a6e]/5 hover:border-[#8b9a6e]/60 transition-all flex items-center justify-center gap-2"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                    Edit Skills
-                  </button>
-                </motion.div>
+                  <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto custom-scrollbar">
+                    {user.skills && user.skills.length > 0 ? (
+                      (Array.isArray(user.skills) ? user.skills : [user.skills]).map((skill, i) => (
+                        <span key={i} className="px-2 py-0.5 bg-gray-100/80 hover:bg-[#8b9a6e]/10 text-gray-700 hover:text-[#5b6a3e] rounded-md text-xs font-medium transition-colors">
+                          {skill}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-gray-400 italic">No skills listed yet</span>
+                    )}
+                  </div>
+                </div>
               )}
             </AnimatePresence>
 
             {profileSaveMsg && (
-              <motion.p 
-                initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
-                className={`text-sm text-center font-medium mt-3 px-3 py-2 rounded-xl ${profileSaveMsg.startsWith("✓") ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}
-              >
+              <p className={`text-xs text-center font-medium mt-2 px-2.5 py-1 rounded-lg ${profileSaveMsg.startsWith("✓") ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
                 {profileSaveMsg}
-              </motion.p>
+              </p>
             )}
-          </motion.div>
 
-          {/* Resume Upload Card */}
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="bg-white/60 backdrop-blur-xl p-8 rounded-3xl shadow-xl border border-white/50"
-          >
-            <h3 className="font-bold text-gray-900 mb-6 flex items-center gap-2 text-lg">
-              <FileText className="w-5 h-5 text-[#8b9a6e]" />
-              Resume Document
-            </h3>
-            
-            {user.resumeUrl ? (
-              <div className="mb-6 bg-gradient-to-r from-green-50 to-[#8b9a6e]/10 border border-[#8b9a6e]/20 p-4 rounded-2xl">
-                <div className="flex items-center gap-3 text-[#5b6a3e] font-semibold mb-2">
-                  <CheckCircle className="w-5 h-5 text-[#8b9a6e]" />
-                  Resume Uploaded
+            {/* Resume Bar (Compact & Integrated) */}
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <div className="flex items-center justify-between bg-gray-50/80 p-2.5 rounded-xl border border-gray-100">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileText className={`w-4 h-4 shrink-0 ${user.resumeUrl ? "text-emerald-600" : "text-amber-500"}`} />
+                  {user.resumeUrl ? (
+                    <a 
+                      href={`http://localhost:5001${user.resumeUrl}`} 
+                      target="_blank" 
+                      rel="noreferrer" 
+                      className="text-xs font-semibold text-gray-800 hover:text-[#8b9a6e] flex items-center gap-1 truncate"
+                    >
+                      Resume Document <ExternalLink className="w-3 h-3 text-gray-400 shrink-0" />
+                    </a>
+                  ) : (
+                    <span className="text-xs text-amber-700 font-medium">No resume attached</span>
+                  )}
                 </div>
-                <a href={`http://localhost:5001${user.resumeUrl}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-[#8b9a6e] hover:text-[#6b7a4e] transition-colors font-medium">
-                  <Search className="w-4 h-4" />
-                  View Current Document
-                </a>
-              </div>
-            ) : (
-              <div className="mb-6 bg-orange-50/80 border border-orange-100 p-4 rounded-2xl flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-500 shrink-0">
-                  <FileText className="w-4 h-4" />
-                </div>
-                <p className="text-sm text-orange-800 font-medium">No resume uploaded. You need a resume to apply for jobs.</p>
-              </div>
-            )}
-            
-            <form onSubmit={handleUploadResume} className="flex flex-col gap-4">
-              <div className="relative">
-                <input 
-                  type="file" 
-                  accept=".pdf,.doc,.docx"
-                  id="resume-upload"
-                  onChange={(e) => setResumeFile(e.target.files[0])}
-                  className="hidden"
-                />
-                <label 
-                  htmlFor="resume-upload"
-                  className="flex items-center justify-center gap-2 w-full py-4 px-4 rounded-2xl border-2 border-dashed border-[#8b9a6e]/30 bg-white/50 hover:bg-[#8b9a6e]/5 hover:border-[#8b9a6e] text-gray-600 cursor-pointer transition-all text-sm font-medium"
+                <button
+                  type="button"
+                  onClick={() => setShowResumeUpload(!showResumeUpload)}
+                  className="text-xs px-2.5 py-1 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg text-gray-700 font-medium transition shrink-0"
                 >
-                  <Upload className="w-5 h-5 text-[#8b9a6e]" />
-                  {resumeFile ? resumeFile.name : (user.resumeUrl ? "Select a file to update..." : "Select a new file...")}
-                </label>
+                  {showResumeUpload ? "Cancel" : user.resumeUrl ? "Replace" : "Upload"}
+                </button>
               </div>
 
-              <button 
-                type="submit" 
-                disabled={!resumeFile || isUploading}
-                className="w-full py-3.5 rounded-2xl bg-gray-900 hover:bg-gray-800 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg flex items-center justify-center gap-2"
-              >
-                {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-                {isUploading ? "Uploading..." : (user.resumeUrl ? "Update Resume" : "Upload Resume")}
-              </button>
-              
-              {uploadStatus && (
-                <p className={`text-sm text-center font-medium ${uploadStatus.includes('success') ? 'text-green-600' : 'text-gray-600'}`}>
-                  {uploadStatus}
-                </p>
+              {/* Inline Upload Dropdown */}
+              {(showResumeUpload || !user.resumeUrl) && (
+                <form onSubmit={handleUploadResume} className="mt-2.5 space-y-2 bg-white/80 p-3 rounded-xl border border-dashed border-[#8b9a6e]/40">
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    id="resume-upload"
+                    onChange={(e) => setResumeFile(e.target.files[0])}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor="resume-upload"
+                    className="flex items-center justify-center gap-2 w-full py-2 px-3 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-600 cursor-pointer text-xs font-medium transition truncate"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-[#8b9a6e] shrink-0" />
+                    <span className="truncate">{resumeFile ? resumeFile.name : "Select PDF / Word..."}</span>
+                  </label>
+                  {resumeFile && (
+                    <button
+                      type="submit"
+                      disabled={isUploading}
+                      className="w-full py-1.5 rounded-lg bg-gray-900 hover:bg-gray-800 text-white font-medium text-xs flex items-center justify-center gap-1.5 transition disabled:opacity-50"
+                    >
+                      {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                      {isUploading ? "Uploading..." : "Save Resume"}
+                    </button>
+                  )}
+                  {uploadStatus && (
+                    <p className={`text-[11px] text-center font-medium ${uploadStatus.includes('success') ? 'text-green-600' : 'text-gray-600'}`}>
+                      {uploadStatus}
+                    </p>
+                  )}
+                </form>
               )}
-            </form>
-          </motion.div>
+            </div>
 
-          {/* My Applications */}
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="bg-white/60 backdrop-blur-xl p-8 rounded-3xl shadow-xl border border-white/50"
-          >
-            <h2 className="text-xl font-bold mb-6 text-gray-900 flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <FileCheck className="w-5 h-5 text-[#8b9a6e]" />
-                My Applications
-              </span>
-              <span className="text-xs px-3 py-1 bg-gray-900 text-white rounded-full font-bold">{myApplications.length}</span>
-            </h2>
-            
-            {myApplications.length > 0 ? (
-              <ul className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                {myApplications.map(app => {
-                  const statusColor = {
-                    placed: "bg-emerald-100 text-emerald-700",
-                    shortlisted: "bg-blue-100 text-blue-700",
-                    interviewing: "bg-purple-100 text-purple-700",
-                    rejected: "bg-red-100 text-red-700",
-                    applied: "bg-gray-100 text-gray-600"
-                  }[app.status?.toLowerCase()] || "bg-gray-100 text-gray-600";
-                  
-                  return (
-                    <li key={app._id} className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-                      <p className="font-bold text-gray-900 mb-1 truncate">{app.job?.title || 'Unknown Job'}</p>
-                      <div className="flex justify-between items-center mt-2">
-                        <span className="text-gray-500 text-xs font-medium bg-gray-50 px-2 py-1 rounded-md">{app.job?.company?.name || app.job?.company || 'Company'}</span>
-                        <div className="flex items-center gap-2">
-                          {app.matchScore !== null && (
-                            <span className="px-2.5 py-1 bg-[#8b9a6e]/10 text-[#5b6a3e] rounded-lg text-xs font-bold">
-                              {app.matchScore}% Match
-                            </span>
-                          )}
-                          <span className={`px-2 py-0.5 rounded-md text-xs font-bold capitalize ${statusColor}`}>
-                            {app.status || 'Applied'}
-                          </span>
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <div className="text-center py-8 px-4 border-2 border-dashed border-gray-200 rounded-2xl">
-                <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400">
-                  <Briefcase className="w-6 h-6" />
-                </div>
-                <p className="text-sm font-medium text-gray-900 mb-1">No applications yet</p>
-                <p className="text-xs text-gray-500">Apply to jobs on the right to see them here.</p>
-              </div>
-            )}
-          </motion.div>
-
-          {/* Upcoming Interviews Card */}
-          {mySlots.length > 0 && (
-            <motion.div 
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.25 }}
-              className="bg-white/60 backdrop-blur-xl p-8 rounded-3xl shadow-xl border border-white/50"
-            >
-              <h2 className="text-xl font-bold mb-4 text-gray-900 flex items-center justify-between">
-                <span className="flex items-center gap-2 text-indigo-700">
-                  <Calendar className="w-5 h-5 text-indigo-600" />
-                  Upcoming Interviews
-                </span>
-                <span className="text-xs px-2.5 py-1 bg-indigo-600 text-white rounded-full font-bold">{mySlots.length}</span>
-              </h2>
-              <div className="space-y-3">
-                {mySlots.map(slot => (
-                  <div key={slot._id} className="p-3.5 bg-indigo-50/60 rounded-2xl border border-indigo-100">
-                    <p className="font-bold text-gray-900 text-sm">{slot.job?.title || 'Scheduled Interview'}</p>
-                    <p className="text-xs text-indigo-600 font-medium mb-1.5">{slot.job?.company?.name || slot.job?.company || 'Company'}</p>
-                    <div className="text-xs text-gray-600 flex items-center gap-2">
-                      <span>📅 {new Date(slot.startTime).toLocaleDateString()}</span>
-                      <span>⏰ {new Date(slot.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {/* Quick Links */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="bg-white/60 backdrop-blur-xl p-6 rounded-3xl shadow-xl border border-white/50"
-          >
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Quick Links</p>
-            <div className="space-y-2">
+            {/* Quick Links Row */}
+            <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-100">
               <button
                 onClick={() => router.push("/alumni-experience")}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/50 hover:bg-[#8b9a6e]/5 border border-white/50 hover:border-[#8b9a6e]/20 text-gray-700 text-sm font-medium transition-all"
+                className="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl bg-gray-50 hover:bg-[#8b9a6e]/10 text-gray-700 text-xs font-semibold border border-gray-100 hover:border-[#8b9a6e]/20 transition"
               >
-                <User className="w-4 h-4 text-[#8b9a6e]" />
-                Alumni Experiences
+                <Users className="w-3.5 h-3.5 text-[#8b9a6e]" />
+                Alumni Hub
               </button>
               <button
                 onClick={() => router.push("/dashboard/copilot")}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/50 hover:bg-[#8b9a6e]/5 border border-white/50 hover:border-[#8b9a6e]/20 text-gray-700 text-sm font-medium transition-all"
+                className="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl bg-gray-50 hover:bg-[#8b9a6e]/10 text-gray-700 text-xs font-semibold border border-gray-100 hover:border-[#8b9a6e]/20 transition"
               >
-                <Bot className="w-4 h-4 text-[#8b9a6e]" />
-                AI Career Copilot
+                <Bot className="w-3.5 h-3.5 text-[#8b9a6e]" />
+                Career Copilot
               </button>
+            </div>
+          </motion.div>
+
+          {/* Card 2: Activity Hub (Tabbed: Applications & Interviews) */}
+          <motion.div 
+            initial={{ opacity: 0, x: -15 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+            className="bg-white/70 backdrop-blur-xl p-5 rounded-2xl shadow-lg border border-white/60"
+          >
+            {/* Tabs Bar */}
+            <div className="flex items-center bg-gray-100/80 p-1 rounded-xl mb-3">
+              <button
+                onClick={() => setActivityTab("applications")}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  activityTab === "applications"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-800"
+                }`}
+              >
+                <FileCheck className="w-3.5 h-3.5 text-[#8b9a6e]" />
+                Applications
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activityTab === "applications" ? "bg-[#8b9a6e] text-white" : "bg-gray-200 text-gray-600"}`}>
+                  {myApplications.length}
+                </span>
+              </button>
+              <button
+                onClick={() => setActivityTab("interviews")}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  activityTab === "interviews"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-800"
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                Interviews
+                {mySlots.length > 0 && (
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activityTab === "interviews" ? "bg-indigo-600 text-white" : "bg-indigo-100 text-indigo-700"}`}>
+                    {mySlots.length}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Tab Contents with compact scroll */}
+            <div className="max-h-[300px] overflow-y-auto pr-1 custom-scrollbar space-y-2">
+              {activityTab === "applications" ? (
+                myApplications.length > 0 ? (
+                  myApplications.map(app => {
+                    const statusColor = {
+                      placed: "bg-emerald-100 text-emerald-700 border-emerald-200",
+                      shortlisted: "bg-blue-100 text-blue-700 border-blue-200",
+                      interviewing: "bg-purple-100 text-purple-700 border-purple-200",
+                      rejected: "bg-red-100 text-red-700 border-red-200",
+                      applied: "bg-gray-100 text-gray-600 border-gray-200"
+                    }[app.status?.toLowerCase()] || "bg-gray-100 text-gray-600 border-gray-200";
+
+                    return (
+                      <div key={app._id} className="p-3 bg-white rounded-xl border border-gray-100 shadow-xs hover:border-gray-200 transition">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="font-semibold text-gray-900 text-xs truncate leading-tight">
+                            {app.job?.title || 'Unknown Job'}
+                          </p>
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold capitalize border shrink-0 ${statusColor}`}>
+                            {app.status || 'Applied'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between mt-1.5 text-xs text-gray-500">
+                          <span className="truncate">{app.job?.company?.name || app.job?.company || 'Company'}</span>
+                          {app.matchScore !== null && (
+                            <span className="text-[11px] font-bold text-[#5b6a3e] bg-[#8b9a6e]/10 px-1.5 py-0.5 rounded shrink-0">
+                              {app.matchScore}% Match
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-8 px-4 text-gray-400">
+                    <FileCheck className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                    <p className="text-xs font-semibold text-gray-700">No applications yet</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">Apply to jobs to track your progress</p>
+                  </div>
+                )
+              ) : (
+                mySlots.length > 0 ? (
+                  mySlots.map(slot => (
+                    <div key={slot._id} className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 shadow-xs">
+                      <p className="font-bold text-gray-900 text-xs truncate leading-tight">
+                        {slot.job?.title || 'Scheduled Interview'}
+                      </p>
+                      <p className="text-[11px] text-indigo-600 font-medium truncate mt-0.5">
+                        {slot.job?.company?.name || slot.job?.company || 'Company'}
+                      </p>
+                      <div className="text-[11px] text-gray-600 flex items-center gap-3 mt-2">
+                        <span className="flex items-center gap-1 font-medium">
+                          <Calendar className="w-3 h-3 text-indigo-500" />
+                          {new Date(slot.startTime).toLocaleDateString()}
+                        </span>
+                        <span className="flex items-center gap-1 font-medium">
+                          <Clock className="w-3 h-3 text-indigo-500" />
+                          {new Date(slot.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 px-4 text-gray-400">
+                    <Calendar className="w-8 h-8 mx-auto mb-2 opacity-40 text-indigo-400" />
+                    <p className="text-xs font-semibold text-gray-700">No interviews scheduled</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">Invitations will appear here</p>
+                  </div>
+                )
+              )}
             </div>
           </motion.div>
         </div>
 
-        {/* Right Content: Recommended Jobs */}
+        {/* Right Content: Recommended Jobs (Compact & Dense Cards) */}
         <div className="lg:col-span-8">
           <motion.div 
-            initial={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: -15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="flex items-center justify-between mb-8 px-2"
+            transition={{ duration: 0.4 }}
+            className="flex items-center justify-between mb-4 px-1"
           >
             <div>
-              <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Recommended Jobs</h2>
-              <p className="text-gray-600 mt-1">Smart matches based on your profile & academic eligibility</p>
+              <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Recommended Jobs</h2>
+              <p className="text-xs text-gray-500 mt-0.5">AI matches matching your skills & academic eligibility</p>
             </div>
+            <span className="text-xs px-3 py-1 bg-[#8b9a6e]/10 text-[#5b6a3e] rounded-full font-bold">
+              {jobs.length} Opportunities
+            </span>
           </motion.div>
           
           {jobs.length > 0 ? (
@@ -730,7 +687,7 @@ export default function StudentDashboard() {
               variants={containerVariants}
               initial="hidden"
               animate="visible"
-              className="grid grid-cols-1 md:grid-cols-2 gap-6"
+              className="grid grid-cols-1 md:grid-cols-2 gap-4"
             >
               {jobs.map(job => {
                 const hasApplied = appliedJobIds.has(job._id);
@@ -741,100 +698,104 @@ export default function StudentDashboard() {
                   <motion.div 
                     variants={itemVariants}
                     key={job._id} 
-                    className="group bg-white/60 backdrop-blur-xl p-8 rounded-3xl shadow-xl border border-white/50 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 flex flex-col relative overflow-hidden"
+                    className="group bg-white/70 backdrop-blur-xl p-5 rounded-2xl shadow-md border border-white/60 transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 flex flex-col relative overflow-hidden"
                   >
-                    {/* Decorative gradient blob inside card */}
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#8b9a6e]/10 to-transparent rounded-full -mr-10 -mt-10 blur-xl"></div>
-                    
-                    <div className="flex justify-between items-start mb-4 relative z-10">
-                      <div>
-                        <h3 className="text-xl font-bold text-gray-900 mb-1 leading-tight group-hover:text-[#8b9a6e] transition-colors">{job.title}</h3>
-                        <p className="text-gray-600 font-medium text-sm flex items-center gap-1.5">
-                          <Briefcase className="w-4 h-4 text-gray-400" />
+                    <div className="flex justify-between items-start gap-2 mb-2 relative z-10">
+                      <div className="min-w-0">
+                        <h3 className="text-base font-bold text-gray-900 leading-tight group-hover:text-[#8b9a6e] transition-colors truncate">
+                          {job.title}
+                        </h3>
+                        <p className="text-gray-500 font-medium text-xs flex items-center gap-1 mt-0.5 truncate">
+                          <Briefcase className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                           {job.company?.name || job.company}
                         </p>
                       </div>
                       {job.matchScore !== undefined && (
-                        <div className="flex flex-col items-end shrink-0 ml-4">
-                          <span className="px-3 py-1.5 bg-gradient-to-r from-[#8b9a6e] to-[#6b7a4e] text-white rounded-xl text-xs font-bold shadow-md shadow-[#8b9a6e]/20 flex items-center gap-1">
-                            <CheckCircle className="w-3 h-3" />
-                            {job.matchScore}% Match
-                          </span>
-                        </div>
+                        <span className="px-2.5 py-1 bg-gradient-to-r from-[#8b9a6e] to-[#6b7a4e] text-white rounded-lg text-xs font-bold shadow-xs shrink-0 flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" />
+                          {job.matchScore}%
+                        </span>
                       )}
                     </div>
 
                     {/* Eligibility & Package Badges */}
-                    <div className="flex flex-wrap gap-2 mb-3 relative z-10">
+                    <div className="flex flex-wrap gap-1.5 mb-2.5 relative z-10">
                       {job.ctc > 0 && (
-                        <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold flex items-center gap-1">
-                          <Banknote className="w-3.5 h-3.5" />
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-[11px] font-bold flex items-center gap-1">
+                          <Banknote className="w-3 h-3" />
                           <span>{job.ctc} LPA</span>
                         </span>
                       )}
                       {(job.minCgpa > 0 || job.requiredCgpa > 0) && (
-                        <span className="px-2.5 py-1 bg-orange-50 text-orange-700 border border-orange-200 rounded-lg text-xs font-semibold">
+                        <span className="px-2 py-0.5 bg-orange-50 text-orange-700 border border-orange-200 rounded-md text-[11px] font-semibold">
                           Min CGPA: {job.minCgpa ?? job.requiredCgpa}
                         </span>
                       )}
-                      <span className="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-semibold">
+                      <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-md text-[11px] font-semibold">
                         Backlogs ≤ {job.maxBacklogs ?? 0}
                       </span>
                     </div>
 
                     {/* Eligibility Status Notice */}
-                    <div className="mb-4 relative z-10">
+                    <div className="mb-2.5 relative z-10">
                       {!eligibility.eligible ? (
-                        <div className="px-3 py-1.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold flex items-center gap-1.5">
-                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                          <span>Ineligible: {eligibility.reason}</span>
+                        <div className="px-2.5 py-1 bg-red-50 border border-red-200 text-red-700 rounded-lg text-[11px] font-semibold flex items-center gap-1.5">
+                          <AlertCircle className="w-3 h-3 shrink-0" />
+                          <span className="truncate">Ineligible: {eligibility.reason}</span>
                         </div>
                       ) : (
-                        <div className="px-3 py-1 bg-emerald-50/80 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-semibold flex items-center gap-1 w-fit">
-                          <CheckCircle className="w-3.5 h-3.5" />
+                        <div className="px-2.5 py-0.5 bg-emerald-50/80 border border-emerald-200 text-emerald-700 rounded-lg text-[11px] font-semibold flex items-center gap-1 w-fit">
+                          <CheckCircle className="w-3 h-3" />
                           <span>Eligible to Apply</span>
                         </div>
                       )}
                     </div>
                     
-                    <p className="text-gray-600 text-sm mb-6 line-clamp-3 leading-relaxed flex-grow relative z-10">{job.description}</p>
+                    <p className="text-gray-600 text-xs mb-3 line-clamp-2 leading-relaxed flex-grow relative z-10">
+                      {job.description}
+                    </p>
                     
-                    <div className="flex flex-wrap gap-2 mb-8 relative z-10">
-                      {(job.requirements || job.requiredSkills || []).map(skill => (
-                         <span key={skill} className="px-3 py-1.5 bg-white text-gray-700 rounded-lg text-xs font-semibold shadow-sm border border-gray-100">
+                    <div className="flex flex-wrap gap-1 mb-4 relative z-10">
+                      {(job.requirements || job.requiredSkills || []).slice(0, 5).map(skill => (
+                        <span key={skill} className="px-2 py-0.5 bg-white text-gray-700 rounded-md text-[10px] font-semibold shadow-2xs border border-gray-100">
                           {skill}
                         </span>
                       ))}
+                      {(job.requirements || job.requiredSkills || []).length > 5 && (
+                        <span className="text-[10px] text-gray-400 font-medium self-center">
+                          +{(job.requirements || job.requiredSkills || []).length - 5}
+                        </span>
+                      )}
                     </div>
                     
-                    <div className="space-y-3 mt-auto relative z-10">
+                    <div className="grid grid-cols-2 gap-2 mt-auto relative z-10">
                       {hasApplied ? (
-                        <button disabled className="w-full py-3.5 rounded-xl bg-gray-100/80 text-gray-400 font-bold cursor-not-allowed border border-gray-200 flex items-center justify-center gap-2">
-                          <CheckCircle className="w-5 h-5" />
+                        <button disabled className="col-span-1 py-2 rounded-xl bg-gray-100 text-gray-400 font-bold text-xs cursor-not-allowed border border-gray-200 flex items-center justify-center gap-1">
+                          <CheckCircle className="w-3.5 h-3.5" />
                           Applied
                         </button>
                       ) : !eligibility.eligible ? (
-                        <button disabled className="w-full py-3.5 rounded-xl bg-gray-100 text-gray-400 font-bold cursor-not-allowed border border-gray-200 flex items-center justify-center gap-2">
-                          <AlertCircle className="w-5 h-5" />
-                          Ineligible to Apply
+                        <button disabled className="col-span-1 py-2 rounded-xl bg-gray-100 text-gray-400 font-bold text-xs cursor-not-allowed border border-gray-200 flex items-center justify-center gap-1">
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          Ineligible
                         </button>
                       ) : (
                         <button 
                           onClick={() => handleApply(job._id)}
                           disabled={isApplying}
-                          className="w-full py-3.5 rounded-xl bg-gray-900 hover:bg-gray-800 text-white font-bold transition-all shadow-lg hover:shadow-xl disabled:opacity-70 flex items-center justify-center gap-2"
+                          className="col-span-1 py-2 rounded-xl bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs transition shadow-md disabled:opacity-70 flex items-center justify-center gap-1"
                         >
-                          {isApplying ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-                          {isApplying ? "Submitting..." : "Apply Now"}
+                          {isApplying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                          {isApplying ? "Applying..." : "Apply Now"}
                         </button>
                       )}
                       
                       <button 
                         onClick={() => router.push(`/dashboard/mock-interview/${job._id}`)}
-                        className="w-full py-3.5 rounded-xl bg-white hover:bg-[#f7f2eb] border-2 border-[#eae2d6] text-gray-700 hover:text-gray-900 font-bold transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+                        className="col-span-1 py-2 rounded-xl bg-white hover:bg-[#f7f2eb] border border-[#eae2d6] text-gray-700 hover:text-gray-900 font-bold text-xs transition flex items-center justify-center gap-1 shadow-2xs"
                       >
-                        <MessageSquare className="w-5 h-5 text-[#8b9a6e]" />
-                        Practice Mock Interview
+                        <MessageSquare className="w-3.5 h-3.5 text-[#8b9a6e]" />
+                        Mock Interview
                       </button>
                     </div>
                   </motion.div>
@@ -846,16 +807,18 @@ export default function StudentDashboard() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="py-16 text-center bg-white/60 backdrop-blur-xl rounded-3xl border border-white/50 shadow-xl"
+              className="py-12 text-center bg-white/60 backdrop-blur-xl rounded-2xl border border-white/50 shadow-md"
             >
-              <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
-                <Search className="w-10 h-10 text-gray-400" />
+              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+                <Search className="w-8 h-8 text-gray-400" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">No jobs available right now</h3>
-              <p className="text-gray-500 max-w-sm mx-auto">We're constantly adding new opportunities. Check back later for roles matching your profile.</p>
+              <h3 className="text-xl font-bold text-gray-900 mb-1">No jobs available right now</h3>
+              <p className="text-gray-500 text-xs max-w-sm mx-auto">We're constantly adding new opportunities. Check back later for roles matching your profile.</p>
             </motion.div>
           )}
         </div>
+      </main>
+iv>
       </main>
 
       {/* Floating AI Copilot Button */}
