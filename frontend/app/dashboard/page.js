@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   User, Mail, GraduationCap, Upload, FileText, CheckCircle, Search, 
   Briefcase, FileCheck, MessageSquare, Plus, Loader2, Bot, Calendar, 
-  AlertCircle, Edit3, Save, X, Star, BookOpen, TrendingUp, Award, Banknote
+  AlertCircle, Edit3, Save, X, Star, BookOpen, TrendingUp, Award, Banknote, Lock
 } from "lucide-react";
 
 export default function StudentDashboard() {
@@ -222,12 +222,7 @@ export default function StudentDashboard() {
         method: "PUT",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({
-          cgpa: editForm.cgpa !== "" ? Number(editForm.cgpa) : undefined,
-          skills: skillsArray,
-          activeBacklogs: editForm.activeBacklogs !== "" ? Number(editForm.activeBacklogs) : undefined,
-          historyOfBacklogs: editForm.historyOfBacklogs !== "" ? Number(editForm.historyOfBacklogs) : undefined,
-          tenthMarks: editForm.tenthMarks !== "" ? Number(editForm.tenthMarks) : undefined,
-          twelfthMarks: editForm.twelfthMarks !== "" ? Number(editForm.twelfthMarks) : undefined,
+          skills: skillsArray
         })
       });
       const data = await res.json();
@@ -235,16 +230,16 @@ export default function StudentDashboard() {
         const updatedUser = { ...user, ...data.user };
         setUser(updatedUser);
         localStorage.setItem("user", JSON.stringify(updatedUser));
-        setProfileSaveMsg("✓ Profile saved successfully!");
+        setProfileSaveMsg("✓ Skills saved successfully!");
         setIsEditingProfile(false);
         // Refresh job feed with new eligibility
         fetchData(token);
         setTimeout(() => setProfileSaveMsg(""), 4000);
       } else {
-        setProfileSaveMsg(data.message || "Failed to save profile.");
+        setProfileSaveMsg(data.message || "Failed to save skills.");
       }
     } catch {
-      setProfileSaveMsg("Error saving profile.");
+      setProfileSaveMsg("Error saving skills.");
     } finally {
       setIsSavingProfile(false);
     }
@@ -343,18 +338,13 @@ export default function StudentDashboard() {
                     setIsEditingProfile(false);
                   } else {
                     setEditForm({
-                      cgpa: user.cgpa ?? "",
                       skills: Array.isArray(user.skills) ? user.skills.join(", ") : (user.skills || ""),
-                      activeBacklogs: user.activeBacklogs ?? "",
-                      historyOfBacklogs: user.historyOfBacklogs ?? "",
-                      tenthMarks: user.tenthMarks ?? "",
-                      twelfthMarks: user.twelfthMarks ?? "",
                     });
                     setIsEditingProfile(true);
                   }
                 }}
                 className={`p-2.5 rounded-xl transition-all ${isEditingProfile ? "bg-red-50 text-red-500 hover:bg-red-100" : "bg-gray-100 text-gray-500 hover:bg-[#8b9a6e]/10 hover:text-[#8b9a6e]"}`}
-                title={isEditingProfile ? "Cancel editing" : "Edit profile"}
+                title={isEditingProfile ? "Cancel editing" : "Edit skills"}
               >
                 {isEditingProfile ? <X className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
               </button>
@@ -408,53 +398,43 @@ export default function StudentDashboard() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="space-y-3 pt-4 border-t border-gray-100"
+                  className="space-y-4 pt-4 border-t border-gray-100"
                 >
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Edit Academic Details</p>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-gray-500 font-medium block mb-1">CGPA</label>
-                      <input type="number" min="0" max="10" step="0.01" value={editForm.cgpa}
-                        onChange={e => setEditForm({...editForm, cgpa: e.target.value})}
-                        placeholder="e.g. 8.5"
-                        className="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8b9a6e] focus:border-transparent outline-none bg-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 font-medium block mb-1">Active Backlogs</label>
-                      <input type="number" min="0" value={editForm.activeBacklogs}
-                        onChange={e => setEditForm({...editForm, activeBacklogs: e.target.value})}
-                        placeholder="0"
-                        className="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8b9a6e] focus:border-transparent outline-none bg-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 font-medium block mb-1">10th %</label>
-                      <input type="number" min="0" max="100" step="0.01" value={editForm.tenthMarks}
-                        onChange={e => setEditForm({...editForm, tenthMarks: e.target.value})}
-                        placeholder="e.g. 90.5"
-                        className="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8b9a6e] focus:border-transparent outline-none bg-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 font-medium block mb-1">12th %</label>
-                      <input type="number" min="0" max="100" step="0.01" value={editForm.twelfthMarks}
-                        onChange={e => setEditForm({...editForm, twelfthMarks: e.target.value})}
-                        placeholder="e.g. 87.0"
-                        className="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8b9a6e] focus:border-transparent outline-none bg-white"
-                      />
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Update Skills</p>
+                    <span className="text-[11px] text-gray-400 flex items-center gap-1 font-medium bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
+                      <Lock className="w-3 h-3 text-amber-500" />
+                      Academics managed by Admin
+                    </span>
                   </div>
 
                   <div>
-                    <label className="text-xs text-gray-500 font-medium block mb-1">Skills (comma separated)</label>
-                    <input type="text" value={editForm.skills}
-                      onChange={e => setEditForm({...editForm, skills: e.target.value})}
-                      placeholder="React, Node.js, Python..."
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8b9a6e] focus:border-transparent outline-none bg-white"
+                    <label className="text-xs text-gray-600 font-medium block mb-1">
+                      Professional & Technical Skills
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={editForm.skills}
+                      onChange={e => setEditForm({ ...editForm, skills: e.target.value })}
+                      placeholder="e.g. React, Node.js, Python, TypeScript, Docker, SQL"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8b9a6e] focus:border-transparent outline-none bg-white resize-none shadow-inner"
                     />
+                    <p className="text-[11px] text-gray-400 mt-1">Separate individual skills with commas</p>
                   </div>
+
+                  {/* Real-time live tags preview */}
+                  {editForm.skills && (
+                    <div>
+                      <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider mb-1.5">Live Preview</p>
+                      <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                        {editForm.skills.split(",").map(s => s.trim()).filter(Boolean).map((skill, idx) => (
+                          <span key={idx} className="px-2.5 py-0.5 bg-[#8b9a6e]/10 text-[#5b6a3e] rounded-lg text-xs font-semibold border border-[#8b9a6e]/20">
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <button
                     onClick={handleSaveProfile}
@@ -462,7 +442,7 @@ export default function StudentDashboard() {
                     className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#8b9a6e] to-[#6b7a4e] text-white font-semibold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-60 shadow-lg shadow-[#8b9a6e]/20"
                   >
                     {isSavingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    {isSavingProfile ? "Saving..." : "Save Changes"}
+                    {isSavingProfile ? "Saving Skills..." : "Save Skills"}
                   </button>
                 </motion.div>
               ) : (
@@ -527,19 +507,14 @@ export default function StudentDashboard() {
                   <button
                     onClick={() => {
                       setEditForm({
-                        cgpa: user.cgpa ?? "",
                         skills: Array.isArray(user.skills) ? user.skills.join(", ") : (user.skills || ""),
-                        activeBacklogs: user.activeBacklogs ?? "",
-                        historyOfBacklogs: user.historyOfBacklogs ?? "",
-                        tenthMarks: user.tenthMarks ?? "",
-                        twelfthMarks: user.twelfthMarks ?? "",
                       });
                       setIsEditingProfile(true);
                     }}
                     className="w-full py-2 rounded-xl border-2 border-dashed border-[#8b9a6e]/30 text-[#8b9a6e] text-sm font-medium hover:bg-[#8b9a6e]/5 hover:border-[#8b9a6e]/60 transition-all flex items-center justify-center gap-2"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
-                    Update Academic Info
+                    Edit Skills
                   </button>
                 </motion.div>
               )}

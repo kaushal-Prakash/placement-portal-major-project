@@ -16,12 +16,12 @@ export default function StudentRoster() {
 
   const [studentData, setStudentData] = useState({
     name: "", email: "", password: "", usn: "", cgpa: "",
-    tenthMarks: "", twelfthMarks: "", activeBacklogs: 0, historyOfBacklogs: 0
+    tenthMarks: "", twelfthMarks: "", activeBacklogs: 0, historyOfBacklogs: 0, skills: ""
   });
   const [editingStudentId, setEditingStudentId] = useState(null);
 
   const resetForm = () => {
-    setStudentData({ name: "", email: "", password: "", usn: "", cgpa: "", tenthMarks: "", twelfthMarks: "", activeBacklogs: 0, historyOfBacklogs: 0 });
+    setStudentData({ name: "", email: "", password: "", usn: "", cgpa: "", tenthMarks: "", twelfthMarks: "", activeBacklogs: 0, historyOfBacklogs: 0, skills: "" });
     setEditingStudentId(null);
   };
 
@@ -35,7 +35,8 @@ export default function StudentRoster() {
       tenthMarks: student.tenthMarks || "",
       twelfthMarks: student.twelfthMarks || "",
       activeBacklogs: student.activeBacklogs || 0,
-      historyOfBacklogs: student.historyOfBacklogs || 0
+      historyOfBacklogs: student.historyOfBacklogs || 0,
+      skills: Array.isArray(student.skills) ? student.skills.join(", ") : (student.skills || "")
     });
     setEditingStudentId(student._id);
   };
@@ -106,6 +107,7 @@ export default function StudentRoster() {
       twelfthMarks: parseFloat(studentData.twelfthMarks) || 0,
       activeBacklogs: parseInt(studentData.activeBacklogs) || 0,
       historyOfBacklogs: parseInt(studentData.historyOfBacklogs) || 0,
+      skills: studentData.skills ? studentData.skills.split(",").map(s => s.trim()).filter(Boolean) : []
     };
     if (isEdit && !payload.password) delete payload.password;
 
@@ -191,6 +193,8 @@ export default function StudentRoster() {
               <input type="number" step="0.1" placeholder="12th %" className="border p-2 rounded text-sm focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={studentData.twelfthMarks} onChange={e => setStudentData({...studentData, twelfthMarks: e.target.value})} />
               <input type="number" placeholder="Active Backlogs" className="border p-2 rounded text-sm focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={studentData.activeBacklogs} onChange={e => setStudentData({...studentData, activeBacklogs: e.target.value})} />
             </div>
+
+            <input type="text" placeholder="Skills (comma separated, e.g. React, Python)" className="border p-2 rounded text-sm focus:ring-2 focus:ring-[#8b9a6e] outline-none" value={studentData.skills} onChange={e => setStudentData({...studentData, skills: e.target.value})} />
 
             <button type="submit" className="mt-2 w-full py-2.5 rounded-lg bg-[#8b9a6e] hover:bg-[#7b8a5e] text-white font-medium transition-colors cursor-pointer">
               {editingStudentId ? "Save Changes" : `Add Student to ${branch.code}`}

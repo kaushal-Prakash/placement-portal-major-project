@@ -56,7 +56,7 @@ router.put('/admin/users/:id', protect, adminOnly, async (req, res) => {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const { name, email, password, cgpa, usn, branch, batch, tenthMarks, twelfthMarks, activeBacklogs, historyOfBacklogs } = req.body;
+    const { name, email, password, cgpa, usn, branch, batch, tenthMarks, twelfthMarks, activeBacklogs, historyOfBacklogs, skills } = req.body;
 
     if (email && email !== user.email) {
       const existingUser = await User.findOne({ email });
@@ -73,6 +73,7 @@ router.put('/admin/users/:id', protect, adminOnly, async (req, res) => {
     if (twelfthMarks !== undefined) user.twelfthMarks = twelfthMarks;
     if (activeBacklogs !== undefined) user.activeBacklogs = activeBacklogs;
     if (historyOfBacklogs !== undefined) user.historyOfBacklogs = historyOfBacklogs;
+    if (skills !== undefined) user.skills = Array.isArray(skills) ? skills : String(skills).split(',').map(s => s.trim()).filter(Boolean);
 
     if (password && password.trim() !== '') {
       user.password = await bcrypt.hash(password, 10);
@@ -107,7 +108,7 @@ router.put('/admin/users/:id/blacklist', protect, adminOnly, async (req, res) =>
 
 /**
  * @route PUT /api/auth/profile
- * @desc Update own profile (students can update CGPA, skills, backlogs)
+ * @desc Update own profile - Students can edit skills only; academic records (CGPA, marks, backlogs) are admin-only
  * @access Private
  */
 router.put('/profile', protect, async (req, res) => {
@@ -115,14 +116,24 @@ router.put('/profile', protect, async (req, res) => {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const { cgpa, skills, activeBacklogs, historyOfBacklogs, tenthMarks, twelfthMarks } = req.body;
+    const { skills } = req.body;
 
-    if (cgpa !== undefined) user.cgpa = cgpa;
-    if (skills !== undefined) user.skills = skills;
-    if (activeBacklogs !== undefined) user.activeBacklogs = activeBacklogs;
-    if (historyOfBacklogs !== undefined) user.historyOfBacklogs = historyOfBacklogs;
-    if (tenthMarks !== undefined) user.tenthMarks = tenthMarks;
-    if (twelfthMarks !== undefined) user.twelfthMarks = twelfthMarks;
+    // Students are permitted to update skills only
+    if (skills !== undefined) {
+      user.skills = Array.isArray(skills)
+        ? skills
+        : String(skills).split(',').map(s => s.trim()).filter(Boolean);
+    }
+
+    // Only admins can alter academic metrics (CGPA, backlogs, marks)
+    if (req.user.role === 'admin') {
+      const { cgpa, activeBacklogs, historyOfBacklogs, tenthMarks, twelfthMarks } = req.body;
+      if (cgpa !== undefined) user.cgpa = cgpa;
+      if (activeBacklogs !== undefined) user.activeBacklogs = activeBacklogs;
+      if (historyOfBacklogs !== undefined) user.historyOfBacklogs = historyOfBacklogs;
+      if (tenthMarks !== undefined) user.tenthMarks = tenthMarks;
+      if (twelfthMarks !== undefined) user.twelfthMarks = twelfthMarks;
+    }
 
     await user.save();
     await user.populate('branch batch');
@@ -136,7 +147,7 @@ router.put('/profile', protect, async (req, res) => {
         tenthMarks: user.tenthMarks, twelfthMarks: user.twelfthMarks,
         branch: user.branch, batch: user.batch,
         isPlaced: user.isPlaced, isBlacklisted: user.isBlacklisted,
-        currentCTC: user.currentCTC
+        currentCTC: user.currentCTC, usn: user.usn
       }
     });
   } catch (error) {
