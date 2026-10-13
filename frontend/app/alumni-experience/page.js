@@ -4,13 +4,8 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Star, Send, X, Plus, ChevronLeft, Building2, Briefcase, 
-  MessageSquare, Lightbulb, Trophy, Search, Filter, ArrowLeft
+  MessageSquare, Lightbulb, Trophy, Search, Filter, ArrowLeft, Sparkles
 } from "lucide-react";
-
-const COMPANY_EMOJIS = { 
-  "Google": "🔵", "Microsoft": "🟩", "Amazon": "🟠", "Meta": "🔵",
-  "Apple": "⚪", "Netflix": "🔴", "default": "🏢" 
-};
 
 function StarRating({ value, onChange, readonly = false }) {
   const [hovered, setHovered] = useState(0);
@@ -344,8 +339,8 @@ export default function AlumniExperience() {
             animate={{ opacity: 1, y: 0 }}
             className="py-24 text-center"
           >
-            <div className="w-20 h-20 bg-white/80 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl border border-white/50 text-4xl">
-              {searchQuery ? "🔍" : "✨"}
+            <div className="w-20 h-20 bg-white/80 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl border border-white/50">
+              {searchQuery ? <Search className="w-9 h-9 text-gray-400" /> : <Sparkles className="w-9 h-9 text-[#8b9a6e]" />}
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-3">
               {searchQuery ? `No results for "${searchQuery}"` : "Be the First to Share!"}
@@ -384,8 +379,8 @@ export default function AlumniExperience() {
                 {/* Company Header */}
                 <div className="flex items-start justify-between mb-5 relative z-10">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center text-2xl shadow-inner border border-gray-100 shrink-0">
-                      {COMPANY_EMOJIS[fb.company] || COMPANY_EMOJIS.default}
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#8b9a6e]/15 to-[#8b9a6e]/5 flex items-center justify-center text-[#8b9a6e] shadow-inner border border-[#8b9a6e]/20 shrink-0">
+                      <Building2 className="w-6 h-6" />
                     </div>
                     <div>
                       <h3 className="text-lg font-bold text-gray-900 group-hover:text-[#8b9a6e] transition-colors leading-tight">{fb.company}</h3>

@@ -13,7 +13,11 @@ router.post('/', protect, async (req, res) => {
   try {
     const { company, jobTitle, interviewQuestions, advice, rating } = req.body;
     
-    if (!req.user.isPlaced && req.user.role !== 'admin') {
+    const User = (await import('../models/User.js')).default;
+    const currentUser = await User.findById(req.user.id);
+    if (!currentUser) return res.status(404).json({ message: 'User not found' });
+
+    if (!currentUser.isPlaced && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Only placed students can submit feedback.' });
     }
 

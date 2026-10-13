@@ -4,3 +4,8 @@ node_modules
 backend/uploads/*
 !backend/uploads/.gitkeep
 /temp
+ai/venv/
+.venv/
+venv/
+__pycache__/
+*.pyc

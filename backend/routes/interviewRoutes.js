@@ -42,6 +42,28 @@ router.post('/schedule/:jobId', protect, adminOnly, async (req, res) => {
       const app = applications[i];
       const currentEnd = new Date(currentStart.getTime() + interviewDurationMinutes * 60000);
 
+      // Check and resolve candidate scheduling conflicts across all companies (Feature 8)
+      let conflict = await InterviewSlot.findOne({
+        candidate: app.user._id,
+        $or: [
+          { startTime: { $lt: currentEnd, $gte: currentStart } },
+          { endTime: { $gt: currentStart, $lte: currentEnd } }
+        ]
+      });
+
+      while (conflict) {
+        // Shift start time by interview duration plus break if conflict found
+        currentStart = new Date(currentEnd.getTime() + breaksBetweenMinutes * 60000);
+        currentEnd = new Date(currentStart.getTime() + interviewDurationMinutes * 60000);
+        conflict = await InterviewSlot.findOne({
+          candidate: app.user._id,
+          $or: [
+            { startTime: { $lt: currentEnd, $gte: currentStart } },
+            { endTime: { $gt: currentStart, $lte: currentEnd } }
+          ]
+        });
+      }
+
       const slot = new InterviewSlot({
         job: jobId,
         candidate: app.user._id,
@@ -57,11 +79,16 @@ router.post('/schedule/:jobId', protect, adminOnly, async (req, res) => {
       app.status = 'interviewing';
       await app.save();
 
+      // Trigger Resend email notification
+      import('../utils/emailService.js').then(({ triggerInterviewScheduledEmail }) => {
+        triggerInterviewScheduledEmail(app.user, job, slot).catch(e => console.error('[Resend Slot Error]:', e));
+      });
+
       // Move currentStart to next available slot (including break)
       currentStart = new Date(currentEnd.getTime() + breaksBetweenMinutes * 60000);
     }
 
-    res.status(201).json({ message: `Successfully scheduled ${createdSlots.length} interviews`, slots: createdSlots });
+    res.status(201).json({ message: `Successfully scheduled ${createdSlots.length} interviews without conflicts`, slots: createdSlots });
   } catch (error) {
     console.error("Scheduling error:", error);
     res.status(500).json({ message: 'Server error', error: error.message });

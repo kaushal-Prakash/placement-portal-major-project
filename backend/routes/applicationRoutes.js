@@ -182,10 +182,19 @@ router.put('/:id/status', protect, adminOnly, async (req, res) => {
     application.status = normalizedStatus;
     await application.save();
 
-    // If placed, update user's isPlaced status and currentCTC
+    // Resend Email Triggers
+    if (normalizedStatus === 'shortlisted') {
+      const student = await User.findById(application.user);
+      const job = await Job.findById(application.job).populate('company');
+      import('../utils/emailService.js').then(({ triggerShortlistEmail }) => {
+        triggerShortlistEmail(student, job).catch(e => console.error('[Resend Shortlist Error]:', e));
+      });
+    }
+
+    // If placed, update user's isPlaced status, currentCTC, and trigger placement congratulations
     if (normalizedStatus === 'placed') {
       const user = await User.findById(application.user);
-      const job = await Job.findById(application.job);
+      const job = await Job.findById(application.job).populate('company');
       if (user) {
         user.isPlaced = true;
         user.placedJob = application.job;
@@ -194,6 +203,9 @@ router.put('/:id/status', protect, adminOnly, async (req, res) => {
         }
         await user.save();
       }
+      import('../utils/emailService.js').then(({ triggerPlacementCongratulationsEmail }) => {
+        triggerPlacementCongratulationsEmail(user, job).catch(e => console.error('[Resend Placed Error]:', e));
+      });
     }
 
     res.json(application);

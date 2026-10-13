@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { 
   Users, TrendingUp, Award, Building2, AlertTriangle, 
-  CheckCircle, BarChart3, ArrowLeft, RefreshCw
+  CheckCircle, BarChart3, ArrowLeft, RefreshCw, AlertCircle
 } from "lucide-react";
 
 function StatCard({ icon: Icon, label, value, color, delay = 0 }) {
@@ -27,14 +27,16 @@ function StatCard({ icon: Icon, label, value, color, delay = 0 }) {
 
 function RiskBadge({ level }) {
   const styles = {
-    High: "bg-red-100 text-red-700 border-red-200",
-    Medium: "bg-amber-100 text-amber-700 border-amber-200",
-    Low: "bg-emerald-100 text-emerald-700 border-emerald-200"
+    High: "bg-red-50 text-red-700 border-red-200",
+    Medium: "bg-amber-50 text-amber-700 border-amber-200",
+    Low: "bg-emerald-50 text-emerald-700 border-emerald-200"
   };
-  const icons = { High: "🔴", Medium: "🟡", Low: "🟢" };
   return (
-    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border ${styles[level]}`}>
-      {icons[level]} {level} Risk
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border ${styles[level] || styles.Medium}`}>
+      {level === "High" && <AlertCircle className="w-3.5 h-3.5 text-red-600" />}
+      {level === "Medium" && <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />}
+      {level === "Low" && <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />}
+      {level} Risk
     </span>
   );
 }
