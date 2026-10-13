@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Briefcase, GraduationCap, Building2, BarChart3, Banknote, ExternalLink, ArrowRight } from "lucide-react";
+import { Briefcase, GraduationCap, Building2, BarChart3, Banknote, ExternalLink, ArrowRight, Lock } from "lucide-react";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -129,7 +129,7 @@ export default function AdminDashboard() {
   };
 
   const fetchJobs = () => {
-    fetch("http://localhost:5001/api/jobs")
+    fetch("http://localhost:5001/api/jobs?all=true")
       .then(async res => {
         if (!res.ok) throw new Error("Failed to fetch");
         const contentType = res.headers.get("content-type");
@@ -141,6 +141,36 @@ export default function AdminDashboard() {
       })
       .then(data => setJobs(data))
       .catch(err => console.error(err));
+  };
+
+  const handleToggleJobStatus = async (jobId, currentStatus) => {
+    const nextStatus = currentStatus === "closed" ? "open" : "closed";
+    const promptMsg = currentStatus === "closed"
+      ? "Reopen applications for this job posting?"
+      : "STOP taking applications for this job posting? Students will no longer be able to apply.";
+    if (!confirm(promptMsg)) return;
+
+    const token = localStorage.getItem("token");
+    try {
+      const res = await fetch(`http://localhost:5001/api/jobs/${jobId}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: nextStatus })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setJobs(prev => prev.map(j => j._id === jobId ? { ...j, status: nextStatus } : j));
+        alert(data.message);
+      } else {
+        alert(data.message || "Failed to update status");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error updating status");
+    }
   };
 
   const handlePostJob = async (e) => {
@@ -497,6 +527,18 @@ export default function AdminDashboard() {
                     )}
                   </div>
                   <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                    <button
+                      onClick={() => handleToggleJobStatus(job._id, job.status)}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5 shadow-2xs ${
+                        job.status === "closed"
+                          ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200"
+                          : "bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
+                      }`}
+                      title={job.status === "closed" ? "Click to reopen applications" : "Click to stop taking applications"}
+                    >
+                      <Lock className="w-3.5 h-3.5" />
+                      <span>{job.status === "closed" ? "Reopen Applications" : "Stop Taking Applications"}</span>
+                    </button>
                     <button
                       onClick={() => router.push(`/admin/jobs/${job._id}`)}
                       className="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-[#8b9a6e]/15 hover:bg-[#8b9a6e]/25 text-[#5b6a3e] border border-[#8b9a6e]/30 transition-all flex items-center gap-1.5 shadow-2xs"

@@ -37,6 +37,7 @@ export default function CompanyDrivePage() {
   // Selection for bulk actions
   const [selectedAppIds, setSelectedAppIds] = useState(new Set());
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isTogglingJobStatus, setIsTogglingJobStatus] = useState(false);
   
   // Share modal state
   const [showShareModal, setShowShareModal] = useState(false);
@@ -253,6 +254,41 @@ export default function CompanyDrivePage() {
     } catch (err) {
       console.error(err);
       alert("Error deleting slot");
+    }
+  };
+
+  const handleToggleJobStatus = async () => {
+    const isCurrentlyClosed = job?.status === "closed";
+    const nextStatus = isCurrentlyClosed ? "open" : "closed";
+    const confirmPrompt = isCurrentlyClosed
+      ? "Reopen applications for this job posting? Students will be able to apply again."
+      : "STOP taking applications for this job posting? Students will no longer be able to apply.";
+    
+    if (!confirm(confirmPrompt)) return;
+
+    setIsTogglingJobStatus(true);
+    const token = localStorage.getItem("token");
+    try {
+      const res = await fetch(`http://localhost:5001/api/jobs/${jobId}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: nextStatus })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setJob(prev => ({ ...prev, status: nextStatus }));
+        alert(data.message || (nextStatus === "closed" ? "Applications stopped. Drive is now closed." : "Drive reopened. Now accepting applications."));
+      } else {
+        alert(data.message || "Failed to update drive status");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error updating drive status");
+    } finally {
+      setIsTogglingJobStatus(false);
     }
   };
 
@@ -669,6 +705,20 @@ export default function CompanyDrivePage() {
               <Share2 className="w-3.5 h-3.5" />
               <span>Share Roster</span>
             </button>
+
+            <button
+              onClick={handleToggleJobStatus}
+              disabled={isTogglingJobStatus}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold shadow-sm transition cursor-pointer disabled:opacity-50 ${
+                job.status === "closed"
+                  ? "bg-emerald-700 hover:bg-emerald-800 text-white"
+                  : "bg-red-600 hover:bg-red-700 text-white"
+              }`}
+              title={job.status === "closed" ? "Reopen applications so students can apply" : "Stop taking student applications for this job posting"}
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>{isTogglingJobStatus ? "Updating..." : (job.status === "closed" ? "Reopen Applications" : "Stop Taking Applications")}</span>
+            </button>
           </div>
         </div>
 
@@ -695,6 +745,19 @@ export default function CompanyDrivePage() {
                     <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${job.status === "closed" ? "bg-red-50 text-red-700 border-red-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"}`}>
                       {job.status === "closed" ? "Drive Closed" : "Active Drive"}
                     </span>
+                    <button
+                      onClick={handleToggleJobStatus}
+                      disabled={isTogglingJobStatus}
+                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border transition cursor-pointer disabled:opacity-50 ${
+                        job.status === "closed"
+                          ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-300"
+                          : "bg-red-50 hover:bg-red-100 text-red-700 border-red-300"
+                      }`}
+                      title={job.status === "closed" ? "Click to reopen drive for student applications" : "Click to stop taking applications"}
+                    >
+                      <Lock className="w-3 h-3" />
+                      <span>{job.status === "closed" ? "Reopen Applications" : "Stop Taking Applications"}</span>
+                    </button>
                   </div>
                   <p className="text-base font-semibold text-gray-700 flex items-center gap-1.5 mt-0.5">
                     <Briefcase className="w-4 h-4 text-gray-400" />

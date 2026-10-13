@@ -37,6 +37,10 @@ router.post('/:jobId', protect, async (req, res) => {
     const job = await Job.findById(jobId);
     if (!job) return res.status(404).json({ message: 'Job not found' });
 
+    if (job.status === 'closed') {
+      return res.status(400).json({ message: 'Applications for this job drive are closed and no longer being accepted.' });
+    }
+
     const user = await User.findById(userId);
     if (!user.resumeUrl) {
       return res.status(400).json({ message: 'Please upload a resume first' });

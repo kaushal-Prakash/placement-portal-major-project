@@ -992,7 +992,12 @@ export default function StudentDashboard() {
 
                     {/* Compact Side-by-Side Action Buttons */}
                     <div className="grid grid-cols-2 gap-2 mt-auto relative z-10 pt-2 border-t border-gray-100">
-                      {hasApplied ? (
+                      {job.status === "closed" ? (
+                        <button disabled className="col-span-1 py-2 rounded-xl bg-red-50 text-red-600 font-bold text-xs cursor-not-allowed border border-red-200 flex items-center justify-center gap-1">
+                          <Lock className="w-3.5 h-3.5" />
+                          Drive Closed
+                        </button>
+                      ) : hasApplied ? (
                         <button disabled className="col-span-1 py-2 rounded-xl bg-gray-100 text-gray-400 font-bold text-xs cursor-not-allowed border border-gray-200 flex items-center justify-center gap-1">
                           <CheckCircle className="w-3.5 h-3.5" />
                           Applied

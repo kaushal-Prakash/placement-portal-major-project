@@ -4,10 +4,11 @@ import { protect, adminOnly } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// GET all jobs (public/student)
+// GET all jobs (public/student gets open jobs; admin can pass ?all=true to get all)
 router.get('/', async (req, res) => {
   try {
-    const jobs = await Job.find({ status: 'open' })
+    const filter = req.query.all === 'true' ? {} : { status: 'open' };
+    const jobs = await Job.find(filter)
       .populate('company')
       .populate('allowedBranches')
       .populate('allowedBatches')
@@ -210,6 +211,37 @@ router.post('/', protect, adminOnly, async (req, res) => {
       .populate('allowedBranches')
       .populate('allowedBatches');
     res.status(201).json(populatedJob);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// PUT /api/jobs/:id/status (admin only) - stop taking applications or reopen
+router.put('/:id/status', protect, adminOnly, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const job = await Job.findById(req.params.id);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+
+    const nextStatus = status ? status : (job.status === 'closed' ? 'open' : 'closed');
+    if (!['open', 'closed'].includes(nextStatus)) {
+      return res.status(400).json({ message: "Invalid status. Allowed values: 'open', 'closed'" });
+    }
+
+    job.status = nextStatus;
+    await job.save();
+
+    const populatedJob = await Job.findById(job._id)
+      .populate('company')
+      .populate('allowedBranches')
+      .populate('allowedBatches');
+
+    res.json({
+      message: nextStatus === 'closed'
+        ? 'Applications stopped. Job posting is now closed.'
+        : 'Applications reopened. Job posting is now accepting applicants.',
+      job: populatedJob
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
