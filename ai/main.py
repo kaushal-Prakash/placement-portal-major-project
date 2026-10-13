@@ -359,6 +359,7 @@ class ChatRequest(BaseModel):
     resume_text: str
     user_message: str
     chat_history: list[dict] = []
+    rag_context: str = ""
 
 @app.post("/api/copilot/chat")
 async def copilot_chat(request: ChatRequest):
@@ -369,7 +370,15 @@ async def copilot_chat(request: ChatRequest):
             from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
             llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key)
-            system_prompt = f"You are an expert AI Career Copilot for campus placements. Candidate resume: {request.resume_text}."
+            rag_section = f"\n\nVerified College Placement Intelligence (RAG Grounding):\n{request.rag_context}" if request.rag_context else ""
+            system_prompt = f"""You are the official AI Career Copilot for college placements.
+Candidate Resume:
+{request.resume_text}{rag_section}
+
+Guidelines:
+- Ground your responses directly in the Verified College Placement Intelligence whenever answering questions regarding specific companies, previous interview rounds, packages, or questions asked to seniors.
+- Be structured, concise, and technically rigorous.
+- Avoid emoji characters in responses."""
             messages = [SystemMessage(content=system_prompt)]
             for msg in request.chat_history:
                 if msg["role"] == "user":
@@ -379,10 +388,14 @@ async def copilot_chat(request: ChatRequest):
             messages.append(HumanMessage(content=request.user_message))
             response = llm.invoke(messages)
             return {"reply": response.content}
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[Gemini Copilot Error]: {e}")
 
-    # Built-in contextual placement mentor
+    # Built-in contextual placement mentor with RAG grounding fallback
+    if request.rag_context:
+        return {
+            "reply": f"Here is the verified placement intelligence retrieved from our college archives:\n\n{request.rag_context}\n\n**Key Recommendation:** Deeply revise the specific interview questions listed above, and be prepared to justify time and space complexity tradeoffs for each algorithm."
+        }
     user_msg_lower = request.user_message.lower()
     skills = extract_skills_from_text(request.resume_text)
     skills_list = ", ".join(list(skills)[:5]) if skills else "your technical skills"

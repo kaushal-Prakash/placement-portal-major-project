@@ -38,6 +38,82 @@ const extractResumeText = async (resumeUrl) => {
 };
 
 /**
+ * RAG Retriever: Pull verified college drive stats and real interview questions
+ */
+const retrieveCollegePlacementKnowledge = async (queryText) => {
+  if (!queryText) return "";
+  try {
+    const mongoose = (await import('mongoose')).default;
+    const db = mongoose.connection.db;
+    if (!db) return "";
+    
+    // Check for company names mentioned in query
+    const companies = await db.collection('companies').find({}).toArray();
+    const queryLower = queryText.toLowerCase();
+    
+    let matchedCompany = null;
+    for (const comp of companies) {
+      if (comp.name && queryLower.includes(comp.name.toLowerCase().trim())) {
+        matchedCompany = comp;
+        break;
+      }
+    }
+
+    if (matchedCompany) {
+      const compRegex = new RegExp(matchedCompany.name.trim(), 'i');
+      const bankDocs = await db.collection('college_knowledge_bank').find({ company: compRegex }).limit(3).toArray();
+      const jobs = await db.collection('jobs').find({ company: matchedCompany._id }).limit(3).toArray();
+      const feedbacks = await db.collection('feedbacks').find({ company: compRegex }).limit(3).toArray();
+
+      let summary = `### Official Campus Intelligence for ${matchedCompany.name}:\n`;
+      if (jobs.length > 0) {
+        summary += `- **Roles & Packages:** ${jobs.map(j => `${j.title} (${j.ctc ? j.ctc + ' LPA' : 'Dream'}, Min CGPA: ${j.minCgpa || 7.0})`).join('; ')}\n`;
+        const allSkills = [...new Set(jobs.flatMap(j => j.requiredSkills || []))];
+        if (allSkills.length) summary += `- **Skills Required:** ${allSkills.join(', ')}\n`;
+      }
+
+      const allQuestions = [
+        ...bankDocs.flatMap(d => d.questions || []),
+        ...feedbacks.flatMap(f => f.interviewQuestions || [])
+      ];
+      const uniqueQuestions = [...new Set(allQuestions)].slice(0, 10);
+      if (uniqueQuestions.length > 0) {
+        summary += `- **Authentic Questions Asked to Seniors in Recent Rounds:**\n` + uniqueQuestions.map(q => `  * "${q}"`).join('\n') + '\n';
+      }
+
+      if (feedbacks.length > 0 && feedbacks[0].advice) {
+        summary += `- **Senior Alumni Advice:** "${feedbacks[0].advice}"\n`;
+      }
+
+      return summary;
+    } else {
+      // General token search across college placement question bank
+      const tokens = queryText.split(/\s+/).filter(w => w.length >= 4);
+      if (tokens.length > 0) {
+        const regexPatterns = tokens.map(t => new RegExp(t, 'i'));
+        const generalDocs = await db.collection('college_knowledge_bank').find({
+          $or: [
+            { company: { $in: regexPatterns } },
+            { questions: { $in: regexPatterns } }
+          ]
+        }).limit(2).toArray();
+
+        if (generalDocs.length > 0) {
+          let summary = "### College Placement Archives (Relevant Past Rounds):\n";
+          generalDocs.forEach(d => {
+            summary += `**${d.company} (${d.batch} Batch):**\n` + (d.questions || []).slice(0, 4).map(q => `* "${q}"`).join('\n') + '\n\n';
+          });
+          return summary;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[RAG Retrieval Error]:', err.message);
+  }
+  return "";
+};
+
+/**
  * @route POST /api/copilot/mock-interview
  * @desc Conduct AI-powered mock interview combining JD, Resume, and Alumni Feedback
  * @access Private (Student only)
@@ -139,7 +215,10 @@ router.post('/chat', protect, async (req, res) => {
     const user = await User.findById(userId).populate('branch batch');
     const resumeText = await extractResumeText(user.resumeUrl);
 
-    // Forward to FastAPI microservice via Express
+    // Retrieve authentic college placement knowledge (RAG System)
+    const ragContext = await retrieveCollegePlacementKnowledge(message);
+
+    // Forward to FastAPI microservice via Express with RAG context
     try {
       const aiRes = await fetch('http://localhost:8000/api/copilot/chat', {
         method: 'POST',
@@ -147,7 +226,8 @@ router.post('/chat', protect, async (req, res) => {
         body: JSON.stringify({
           resume_text: resumeText || (user.skills || []).join(', ') || 'Engineering Student',
           user_message: message,
-          chat_history: chatHistory || []
+          chat_history: chatHistory || [],
+          rag_context: ragContext
         })
       });
 
@@ -159,7 +239,13 @@ router.post('/chat', protect, async (req, res) => {
       console.warn('[Copilot Chat Route] FastAPI service unavailable. Using Express fallback:', aiErr.message);
     }
 
-    // Express Local Intelligent Fallback
+    // Express Local Intelligent Fallback grounded in RAG Context
+    if (ragContext) {
+      return res.json({
+        reply: `Here is the verified placement intelligence from our college archives:\n\n${ragContext}\n\n**Actionable Advice:** Deepen your revision of the tested topics above and prepare your resume projects with clear complexity explanations.`
+      });
+    }
+
     const msg = (message || '').toLowerCase();
     const skillsList = (user.skills || []).join(', ') || 'programming fundamentals';
 

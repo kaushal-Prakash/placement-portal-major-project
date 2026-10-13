@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowLeft, Bot, Send, Loader2, Sparkles, CheckCircle2, 
-  AlertCircle, Briefcase, Building2, Lightbulb, RefreshCw, Trophy
+  AlertCircle, Briefcase, Building2, Lightbulb, RefreshCw, Trophy,
+  Mic, MicOff, Volume2, VolumeX
 } from "lucide-react";
 
 export default function MockInterview({ params }) {
@@ -18,6 +19,13 @@ export default function MockInterview({ params }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingSkillGap, setLoadingSkillGap] = useState(true);
+
+  // Voice speech-to-text & text-to-speech states
+  const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(true);
+  const [voiceInterviewerEnabled, setVoiceInterviewerEnabled] = useState(true);
+  const recognitionRef = useRef(null);
+
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -27,6 +35,77 @@ export default function MockInterview({ params }) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Initialize Web Speech Recognition
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = "en-US";
+
+        recognition.onresult = (event) => {
+          let currentTranscript = "";
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            currentTranscript += event.results[i][0].transcript;
+          }
+          if (currentTranscript.trim()) {
+            setInput(prev => {
+              const base = prev.trim();
+              // Prevent rapid duplicate repeats
+              if (base.endsWith(currentTranscript.trim())) return base;
+              return base ? `${base} ${currentTranscript.trim()}` : currentTranscript.trim();
+            });
+          }
+        };
+
+        recognition.onerror = (event) => {
+          console.warn("Speech recognition notice:", event.error);
+          setIsListening(false);
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
+        };
+
+        recognitionRef.current = recognition;
+      } else {
+        setSpeechSupported(false);
+      }
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      alert("Speech recognition is not available in this browser. Please use Chrome, Edge, or Safari.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (err) {
+        console.error("Speech start error:", err);
+      }
+    }
+  };
+
+  const speakText = (text) => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window && text) {
+      window.speechSynthesis.cancel();
+      const cleanText = text.replace(/[\*#_`]/g, "").replace(/🎯/g, "");
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      window.speechSynthesis.speak(utterance);
+    }
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -84,6 +163,9 @@ export default function MockInterview({ params }) {
       const data = await res.json();
       if (res.ok) {
         setMessages([{ role: "assistant", content: data.reply }]);
+        if (voiceInterviewerEnabled) {
+          speakText(data.reply);
+        }
       } else {
         setMessages([{ role: "assistant", content: `Error: ${data.message || 'Failed to start interview'}` }]);
       }
@@ -97,6 +179,12 @@ export default function MockInterview({ params }) {
   const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim() || loading) return;
+
+    // If currently recording voice, stop listening
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    }
 
     const userMessage = { role: "user", content: input.trim() };
     const updatedMessages = [...messages, userMessage];
@@ -118,6 +206,9 @@ export default function MockInterview({ params }) {
       
       if (res.ok) {
         setMessages(prev => [...prev, { role: "assistant", content: data.reply }]);
+        if (voiceInterviewerEnabled) {
+          speakText(data.reply);
+        }
       } else {
         setMessages(prev => [...prev, { role: "assistant", content: `Error: ${data.message}` }]);
       }
@@ -131,13 +222,18 @@ export default function MockInterview({ params }) {
   const companyName = job?.company?.name || job?.company || "Company";
 
   return (
-    <div className="flex flex-col h-screen bg-[#f7f2eb] text-[#333333]">
+    <div className="flex flex-col h-screen bg-[#f7f2eb] text-[#333333] font-sans">
       
       {/* Top Header */}
       <header className="bg-white/80 backdrop-blur-md border-b border-gray-200 px-6 py-3.5 flex justify-between items-center shadow-xs shrink-0">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => router.push("/dashboard")}
+            onClick={() => {
+              if (typeof window !== "undefined" && "speechSynthesis" in window) {
+                window.speechSynthesis.cancel();
+              }
+              router.push("/dashboard");
+            }}
             className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-600 transition"
             title="Back to Dashboard"
           >
@@ -147,22 +243,49 @@ export default function MockInterview({ params }) {
             <div className="flex items-center gap-2">
               <h1 className="text-base font-bold text-gray-900 flex items-center gap-1.5">
                 <Bot className="w-4 h-4 text-[#8b9a6e]" />
-                AI Mock Interview • {companyName}
+                AI Voice Mock Interview • {companyName}
               </h1>
               <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[#8b9a6e]/15 text-[#5b6a3e]">
                 RAG Simulator
               </span>
             </div>
-            <p className="text-[11px] text-gray-500">{job?.title || "Target Role"} • Skill-Gap Oriented Grilling</p>
+            <p className="text-[11px] text-gray-500">{job?.title || "Target Role"} • Spoken Technical Grilling</p>
           </div>
         </div>
 
-        <button 
-          onClick={() => router.push("/dashboard")}
-          className="text-xs px-3.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition"
-        >
-          End Session
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Voice Interviewer Read-Aloud Toggle */}
+          <button
+            onClick={() => {
+              const nextState = !voiceInterviewerEnabled;
+              setVoiceInterviewerEnabled(nextState);
+              if (!nextState && typeof window !== "undefined" && "speechSynthesis" in window) {
+                window.speechSynthesis.cancel();
+              }
+            }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all border ${
+              voiceInterviewerEnabled 
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200 shadow-2xs" 
+                : "bg-gray-100 text-gray-500 border-gray-200"
+            }`}
+            title="Toggle whether AI Interviewer reads questions aloud"
+          >
+            {voiceInterviewerEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+            <span>Voice Audio: {voiceInterviewerEnabled ? "ON" : "OFF"}</span>
+          </button>
+
+          <button 
+            onClick={() => {
+              if (typeof window !== "undefined" && "speechSynthesis" in window) {
+                window.speechSynthesis.cancel();
+              }
+              router.push("/dashboard");
+            }}
+            className="text-xs px-3.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition"
+          >
+            End Session
+          </button>
+        </div>
       </header>
 
       {/* Main Content Area: Skill Gap Sidebar + Chat */}
@@ -198,43 +321,54 @@ export default function MockInterview({ params }) {
                   <CheckCircle2 className="w-3.5 h-3.5" /> Matched Skills ({skillGap.matched_skills?.length || 0})
                 </span>
                 <div className="flex flex-wrap gap-1">
-                  {skillGap.matched_skills?.length > 0 ? (
-                    skillGap.matched_skills.map(s => (
-                      <span key={s} className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-medium">
-                        {s}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-[11px] text-gray-400 italic">No direct matches</span>
+                  {(skillGap.matched_skills || []).map((skill, sIdx) => (
+                    <span 
+                      key={sIdx} 
+                      className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                  {(!skillGap.matched_skills || skillGap.matched_skills.length === 0) && (
+                    <span className="text-[11px] text-gray-400 italic">None identified</span>
                   )}
                 </div>
               </div>
 
-              {/* Missing Skills (The Gap) */}
+              {/* Missing Skills (Grilling Targets) */}
               <div>
-                <span className="text-[11px] font-bold text-amber-700 flex items-center gap-1 mb-1">
-                  <AlertCircle className="w-3.5 h-3.5" /> Skill Gaps To Prepare ({skillGap.missing_skills?.length || 0})
+                <span className="text-[11px] font-bold text-red-600 flex items-center gap-1 mb-1">
+                  <AlertCircle className="w-3.5 h-3.5" /> Missing Skills ({skillGap.missing_skills?.length || 0})
                 </span>
                 <div className="flex flex-wrap gap-1">
-                  {skillGap.missing_skills?.length > 0 ? (
-                    skillGap.missing_skills.map(s => (
-                      <span key={s} className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold">
-                        {s}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-[11px] text-emerald-600 font-medium">Profile covers all core skills!</span>
+                  {(skillGap.missing_skills || []).map((skill, sIdx) => (
+                    <span 
+                      key={sIdx} 
+                      className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-red-50 text-red-600 border border-red-100"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                  {(!skillGap.missing_skills || skillGap.missing_skills.length === 0) && (
+                    <span className="text-[11px] text-emerald-600 font-medium">All core skills covered!</span>
                   )}
                 </div>
               </div>
 
-              {/* Recommendations */}
+              {/* Study Recommendations */}
               {skillGap.recommendations?.length > 0 && (
-                <div className="bg-[#f7f2eb] p-2.5 rounded-xl border border-gray-200 text-[11px] text-gray-700 space-y-1">
-                  <span className="font-bold flex items-center gap-1 text-gray-900">
-                    <Lightbulb className="w-3.5 h-3.5 text-[#8b9a6e]" /> Copilot Tip:
+                <div className="pt-2 border-t border-gray-100">
+                  <span className="text-[11px] font-bold text-gray-700 flex items-center gap-1 mb-1.5">
+                    <Lightbulb className="w-3.5 h-3.5 text-amber-500" /> Focus Topics
                   </span>
-                  <p className="leading-relaxed">{skillGap.recommendations[0]}</p>
+                  <ul className="space-y-1 text-[11px] text-gray-600">
+                    {skillGap.recommendations.map((rec, rIdx) => (
+                      <li key={rIdx} className="leading-snug flex items-start gap-1.5">
+                        <span className="text-[#8b9a6e] font-bold">•</span>
+                        <span>{rec}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
             </div>
@@ -243,17 +377,28 @@ export default function MockInterview({ params }) {
           )}
         </div>
 
-        {/* Right Area: Interactive Mock Chat */}
+        {/* Right Area: Interactive Voice & Text Mock Chat */}
         <div className="flex-1 bg-white/80 backdrop-blur-md rounded-2xl border border-white shadow-sm flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
             {messages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-xs leading-relaxed ${
+                <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-xs leading-relaxed relative group ${
                   msg.role === "user" 
                     ? "bg-gray-900 text-white rounded-br-none shadow-xs font-medium" 
                     : "bg-[#f7f2eb]/90 border border-gray-200 text-gray-800 rounded-bl-none shadow-xs"
                 }`}>
                   <div className="whitespace-pre-wrap">{msg.content}</div>
+
+                  {msg.role === "assistant" && (
+                    <button
+                      type="button"
+                      onClick={() => speakText(msg.content)}
+                      className="mt-2 text-[10px] font-bold text-[#5b6a3e] hover:text-[#3b4a1e] flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity"
+                      title="Replay Audio"
+                    >
+                      <Volume2 className="w-3 h-3" /> Read aloud
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -268,21 +413,64 @@ export default function MockInterview({ params }) {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Chat Input Bar */}
+          {/* Voice Status Pill when actively listening */}
+          <AnimatePresence>
+            {isListening && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="bg-red-500/10 border-t border-red-200 px-4 py-2 flex items-center justify-between text-xs text-red-700 font-bold"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping shrink-0" />
+                  <span>Listening to your spoken answer... Speak clearly into your mic</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  className="text-[11px] underline font-extrabold text-red-800"
+                >
+                  Done Speaking
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Chat Input & Voice Bar */}
           <footer className="p-3 bg-white border-t border-gray-100">
-            <form onSubmit={handleSend} className="flex gap-2">
+            <form onSubmit={handleSend} className="flex items-center gap-2">
               <input 
                 type="text" 
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Type your answer (explain approach, architecture, or solution)..."
+                placeholder={isListening ? "Listening... (your words appear here)" : "Speak or type your answer..."}
                 disabled={loading}
                 className="flex-1 px-4 py-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8b9a6e]/50 disabled:bg-gray-100 text-gray-900"
               />
+
+              {/* Voice Microphone Button */}
+              {speechSupported && (
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  disabled={loading}
+                  className={`p-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center shrink-0 border ${
+                    isListening
+                      ? "bg-red-600 text-white border-red-700 shadow-md animate-pulse"
+                      : "bg-white hover:bg-gray-100 text-gray-700 border-gray-200 shadow-2xs"
+                  }`}
+                  title={isListening ? "Stop voice listening" : "Click to speak your response"}
+                >
+                  {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4 text-[#8b9a6e]" />}
+                </button>
+              )}
+
+              {/* Send / Submit Button */}
               <button 
                 type="submit"
                 disabled={loading || !input.trim()}
-                className="px-5 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-50 shadow-xs"
+                className="px-5 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-50 shadow-xs shrink-0"
               >
                 <Send className="w-3.5 h-3.5" />
                 <span>Submit</span>

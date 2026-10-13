@@ -4,8 +4,17 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Star, Send, X, Plus, ChevronLeft, Building2, Briefcase, 
-  MessageSquare, Lightbulb, Trophy, Search, Filter, ArrowLeft, Sparkles
+  MessageSquare, Lightbulb, Trophy, Search, Filter, ArrowLeft, Sparkles,
+  Phone, Mail, ExternalLink
 } from "lucide-react";
+
+function LinkedInIcon({ className = "w-4 h-4" }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9h2.79v8.37H6.46v-8.37M7.86 6.54a1.62 1.62 0 1 0 0 3.24 1.62 1.62 0 0 0 0-3.24z"/>
+    </svg>
+  );
+}
 
 function StarRating({ value, onChange, readonly = false }) {
   const [hovered, setHovered] = useState(0);
@@ -45,9 +54,13 @@ export default function AlumniExperience() {
   // Form state
   const [company, setCompany] = useState("");
   const [jobTitle, setJobTitle] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [batch, setBatch] = useState("2025");
   const [questions, setQuestions] = useState("");
   const [advice, setAdvice] = useState("");
-  const [rating, setRating] = useState(3);
+  const [rating, setRating] = useState(4);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -78,6 +91,17 @@ export default function AlumniExperience() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Mandatory LinkedIn URL check
+    if (!linkedinUrl.trim()) {
+      alert("LinkedIn profile URL is mandatory for authentic alumni mentorship.");
+      return;
+    }
+    if (!linkedinUrl.toLowerCase().includes("linkedin.com/")) {
+      alert("Please enter a valid LinkedIn URL (e.g. https://linkedin.com/in/username).");
+      return;
+    }
+
     setIsSubmitting(true);
     const token = localStorage.getItem("token");
     
@@ -90,12 +114,22 @@ export default function AlumniExperience() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({ company, jobTitle, interviewQuestions, advice, rating: Number(rating) })
+        body: JSON.stringify({ 
+          company, 
+          jobTitle, 
+          linkedinUrl: linkedinUrl.trim(),
+          phone: phone.trim() || undefined,
+          email: email.trim() || undefined,
+          batch: batch.trim() || undefined,
+          interviewQuestions, 
+          advice, 
+          rating: Number(rating) 
+        })
       });
 
       if (res.ok) {
         setShowForm(false);
-        setCompany(""); setJobTitle(""); setQuestions(""); setAdvice(""); setRating(3);
+        resetForm();
         fetchFeedbacks(token);
       } else {
         const errorData = await res.json();
@@ -110,7 +144,15 @@ export default function AlumniExperience() {
 
   const resetForm = () => {
     setShowForm(false);
-    setCompany(""); setJobTitle(""); setQuestions(""); setAdvice(""); setRating(3);
+    setCompany(""); 
+    setJobTitle(""); 
+    setLinkedinUrl("");
+    setPhone("");
+    setEmail("");
+    setBatch("2025");
+    setQuestions(""); 
+    setAdvice(""); 
+    setRating(4);
   };
 
   const filtered = feedbacks.filter(fb =>
@@ -260,6 +302,67 @@ export default function AlumniExperience() {
                           onChange={e => setJobTitle(e.target.value)}
                           placeholder="e.g. Software Engineer..."
                           className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8b9a6e] focus:border-transparent outline-none text-sm transition-all bg-gray-50 focus:bg-white"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Mandatory LinkedIn Profile URL */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                          <LinkedInIcon className="w-4 h-4 text-blue-600" />
+                          LinkedIn Profile URL
+                        </label>
+                        <span className="text-[10px] font-bold text-red-500 uppercase tracking-wider bg-red-50 px-2 py-0.5 rounded border border-red-100">
+                          * Mandatory
+                        </span>
+                      </div>
+                      <input 
+                        required 
+                        type="url" 
+                        value={linkedinUrl} 
+                        onChange={e => setLinkedinUrl(e.target.value)}
+                        placeholder="https://www.linkedin.com/in/username"
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#8b9a6e] focus:border-transparent outline-none text-sm transition-all bg-gray-50 focus:bg-white"
+                      />
+                    </div>
+
+                    {/* Optional Contact Details & Batch */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1.5 flex items-center gap-1">
+                          <Phone className="w-3.5 h-3.5 text-gray-400" /> Phone (Optional)
+                        </label>
+                        <input 
+                          type="tel" 
+                          value={phone} 
+                          onChange={e => setPhone(e.target.value)}
+                          placeholder="+91 98765 43210"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#8b9a6e] bg-gray-50 focus:bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1.5 flex items-center gap-1">
+                          <Mail className="w-3.5 h-3.5 text-gray-400" /> Email (Optional)
+                        </label>
+                        <input 
+                          type="email" 
+                          value={email} 
+                          onChange={e => setEmail(e.target.value)}
+                          placeholder="senior@college.edu"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#8b9a6e] bg-gray-50 focus:bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                          Graduation Batch
+                        </label>
+                        <input 
+                          type="text" 
+                          value={batch} 
+                          onChange={e => setBatch(e.target.value)}
+                          placeholder="e.g. 2025"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#8b9a6e] bg-gray-50 focus:bg-white"
                         />
                       </div>
                     </div>
@@ -433,18 +536,54 @@ export default function AlumniExperience() {
                 </div>
 
                 {/* Footer */}
-                <div className="mt-4 pt-3 border-t border-gray-100/50 flex items-center justify-between relative z-10">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#8b9a6e] to-[#6b7a4e] flex items-center justify-center text-white text-xs font-bold">
-                      {(fb.user?.name || "A").charAt(0).toUpperCase()}
+                <div className="mt-4 pt-3 border-t border-gray-100/60 flex items-center justify-between gap-2 relative z-10">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#8b9a6e] to-[#6b7a4e] flex items-center justify-center text-white text-xs font-bold shrink-0">
+                      {(fb.authorName || fb.user?.name || "S").charAt(0).toUpperCase()}
                     </div>
-                    <span className="text-xs text-gray-500 font-medium">{fb.user?.name || "Anonymous"}</span>
+                    <div className="min-w-0">
+                      <span className="text-xs text-gray-800 font-bold block truncate leading-tight">
+                        {fb.authorName || fb.user?.name || "Senior Alumni"}
+                      </span>
+                      <span className="text-[10px] text-gray-400 block truncate">
+                        {fb.batch ? `Batch ${fb.batch}` : "Placed Senior"}
+                      </span>
+                    </div>
                   </div>
-                  {fb.createdAt && (
-                    <span className="text-xs text-gray-400">
-                      {new Date(fb.createdAt).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}
-                    </span>
-                  )}
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {fb.linkedinUrl && (
+                      <a
+                        href={fb.linkedinUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-[11px] font-bold transition-all border border-blue-200"
+                        title="View Verified LinkedIn Profile"
+                      >
+                        <LinkedInIcon className="w-3.5 h-3.5 text-blue-600" />
+                        <span>LinkedIn</span>
+                        <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+                      </a>
+                    )}
+                    {fb.email && (
+                      <a
+                        href={`mailto:${fb.email}`}
+                        className="p-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-all border border-gray-200"
+                        title={`Email: ${fb.email}`}
+                      >
+                        <Mail className="w-3 h-3" />
+                      </a>
+                    )}
+                    {fb.phone && (
+                      <a
+                        href={`tel:${fb.phone}`}
+                        className="p-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-all border border-gray-200"
+                        title={`Phone: ${fb.phone}`}
+                      >
+                        <Phone className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             ))}
