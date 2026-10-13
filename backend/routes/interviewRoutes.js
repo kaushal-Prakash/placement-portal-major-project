@@ -97,13 +97,62 @@ router.post('/schedule/:jobId', protect, adminOnly, async (req, res) => {
 
 /**
  * @route GET /api/interviews/:jobId
- * @desc Get all interview slots for a job
+ * @desc Get all interview slots for a job with full candidate and branch details
  * @access Private/Admin
  */
 router.get('/:jobId', protect, adminOnly, async (req, res) => {
   try {
-    const slots = await InterviewSlot.find({ job: req.params.jobId }).populate('candidate', 'name email');
+    const slots = await InterviewSlot.find({ job: req.params.jobId })
+      .populate({
+        path: 'candidate',
+        select: 'name email usn branch cgpa phone activeBacklogs',
+        populate: { path: 'branch', select: 'name code' }
+      })
+      .sort({ startTime: 1 });
     res.json(slots);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+/**
+ * @route PUT /api/interviews/slot/:slotId
+ * @desc Update an interview slot status or panel details
+ * @access Private/Admin
+ */
+router.put('/slot/:slotId', protect, adminOnly, async (req, res) => {
+  try {
+    const { status, interviewer, startTime, endTime } = req.body;
+    const slot = await InterviewSlot.findById(req.params.slotId);
+    if (!slot) return res.status(404).json({ message: 'Interview slot not found' });
+
+    if (status) slot.status = status;
+    if (interviewer !== undefined) slot.interviewer = interviewer;
+    if (startTime) slot.startTime = new Date(startTime);
+    if (endTime) slot.endTime = new Date(endTime);
+
+    await slot.save();
+    const populated = await InterviewSlot.findById(slot._id).populate({
+      path: 'candidate',
+      select: 'name email usn branch cgpa phone activeBacklogs',
+      populate: { path: 'branch', select: 'name code' }
+    });
+    res.json({ message: 'Slot updated successfully', slot: populated });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+/**
+ * @route DELETE /api/interviews/slot/:slotId
+ * @desc Remove/cancel an interview slot
+ * @access Private/Admin
+ */
+router.delete('/slot/:slotId', protect, adminOnly, async (req, res) => {
+  try {
+    const slot = await InterviewSlot.findByIdAndDelete(req.params.slotId);
+    if (!slot) return res.status(404).json({ message: 'Interview slot not found' });
+    res.json({ message: 'Interview slot deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
