@@ -103,11 +103,20 @@ router.get('/smart-feed', protect, async (req, res) => {
     const matchData = await matchReq.json();
     const scores = matchData.match_scores;
 
-    // Attach scores to jobs and sort
-    const scoredJobs = jobs.map((job, index) => ({
-      ...job,
-      matchScore: scores[index]
-    }));
+    const { evaluateApplicationRules } = await import('../utils/rulesEngine.js');
+
+    // Attach scores, eligibility, and dream company status to jobs and sort
+    const scoredJobs = jobs.map((job, index) => {
+      const ruleEval = evaluateApplicationRules(user, job);
+      const isDreamJob = Boolean(user.isPlaced && job.ctc && job.ctc >= ((user.currentCTC || 0) * 1.5));
+      return {
+        ...job,
+        matchScore: scores[index],
+        isEligible: ruleEval.allowed,
+        ineligibilityReason: ruleEval.allowed ? null : ruleEval.reason,
+        isDreamJob
+      };
+    });
 
     scoredJobs.sort((a, b) => b.matchScore - a.matchScore);
     res.json(scoredJobs);
@@ -115,12 +124,29 @@ router.get('/smart-feed', protect, async (req, res) => {
   } catch (error) {
     console.error('Smart feed fallback:', error.message);
     try {
+      const User = (await import('../models/User.js')).default;
+      const user = await User.findById(req.user.id);
+      const { evaluateApplicationRules } = await import('../utils/rulesEngine.js');
+
       const fallbackJobs = await Job.find({ status: 'open' })
         .populate('company')
         .populate('allowedBranches')
         .populate('allowedBatches')
-        .sort({ createdAt: -1 });
-      res.json(fallbackJobs);
+        .sort({ createdAt: -1 })
+        .lean();
+
+      const enriched = fallbackJobs.map(job => {
+        const ruleEval = user ? evaluateApplicationRules(user, job) : { allowed: true };
+        const isDreamJob = Boolean(user?.isPlaced && job.ctc && job.ctc >= ((user.currentCTC || 0) * 1.5));
+        return {
+          ...job,
+          isEligible: ruleEval.allowed,
+          ineligibilityReason: ruleEval.allowed ? null : ruleEval.reason,
+          isDreamJob
+        };
+      });
+
+      res.json(enriched);
     } catch (dbErr) {
       res.status(500).json({ message: 'Error loading jobs', error: dbErr.message });
     }

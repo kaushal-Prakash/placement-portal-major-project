@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { 
@@ -47,6 +47,22 @@ export default function AnalyticsDashboard() {
   const [predictiveData, setPredictiveData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [riskFilter, setRiskFilter] = useState("All");
+
+  const branchComparison = useMemo(() => {
+    if (!Array.isArray(predictiveData)) return [];
+    const map = {};
+    predictiveData.forEach(p => {
+      const code = p.branch || 'General';
+      if (!map[code]) map[code] = { branch: code, count: 0, highRisk: 0, sumProb: 0 };
+      map[code].count += 1;
+      map[code].sumProb += p.placementProbability;
+      if (p.riskLevel === 'High') map[code].highRisk += 1;
+    });
+    return Object.values(map).map(b => ({
+      ...b,
+      avgProb: Math.round(b.sumProb / (b.count || 1))
+    })).sort((a, b) => b.count - a.count);
+  }, [predictiveData]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -120,13 +136,22 @@ export default function AnalyticsDashboard() {
               <p className="text-gray-500 text-sm">Real-time overview of placement performance</p>
             </div>
           </div>
-          <button
-            onClick={fetchData}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/60 border border-white/50 text-gray-600 text-sm font-medium hover:bg-white/80 transition-all shadow-sm"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push("/companies")}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/60 border border-white/50 text-gray-700 text-sm font-semibold hover:bg-white/90 transition-all shadow-sm"
+            >
+              <Building2 className="w-4 h-4 text-[#8b9a6e]" />
+              Company Intelligence
+            </button>
+            <button
+              onClick={fetchData}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/60 border border-white/50 text-gray-600 text-sm font-medium hover:bg-white/80 transition-all shadow-sm"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </button>
+          </div>
         </div>
       </motion.header>
 
@@ -269,6 +294,32 @@ export default function AnalyticsDashboard() {
               ))}
             </div>
           </div>
+
+          {/* Branch-wise Risk Breakdown */}
+          {branchComparison.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              {branchComparison.map(b => (
+                <div key={b.branch} className="bg-white/80 p-4 rounded-2xl border border-gray-100 shadow-xs">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">{b.branch} Branch</span>
+                    <span className="text-[11px] font-semibold text-gray-400">{b.count} Students</span>
+                  </div>
+                  <div className="flex items-baseline justify-between mb-2">
+                    <span className="text-xl font-extrabold text-gray-900">{b.avgProb}% Prob.</span>
+                    <span className={`text-xs font-bold ${b.highRisk > 0 ? "text-red-600" : "text-emerald-600"}`}>
+                      {b.highRisk} at High Risk
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="h-full rounded-full bg-gradient-to-r from-orange-400 to-[#8b9a6e]"
+                      style={{ width: `${Math.min(100, b.avgProb)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="overflow-x-auto">
             <table className="w-full">

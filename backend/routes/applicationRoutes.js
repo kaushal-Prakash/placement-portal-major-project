@@ -6,6 +6,7 @@ import fetch from 'node-fetch'; // May need to install node-fetch or use native 
 import Application from '../models/Application.js';
 import Job from '../models/Job.js';
 import User from '../models/User.js';
+import InterviewSlot from '../models/InterviewSlot.js';
 import { protect, adminOnly } from '../middleware/authMiddleware.js';
 import { evaluateApplicationRules } from '../utils/rulesEngine.js';
 import { getResumeFilePath } from '../utils/resumeHelper.js';
@@ -203,6 +204,29 @@ router.put('/:id/status', protect, adminOnly, async (req, res) => {
         }
         await user.save();
       }
+
+      // Feature 7: IIT-Style Policy Enforcement - One-Student-One-Job rule
+      // Automatically deregister/withdraw from other ongoing applications that do not meet the Dream Company upgrade threshold (1.5x)
+      const dreamThreshold = ((job?.ctc || user?.currentCTC || 0) * 1.5);
+      const otherOngoingApps = await Application.find({
+        user: application.user,
+        _id: { $ne: application._id },
+        status: { $in: ['applied', 'shortlisted'] }
+      }).populate('job');
+
+      for (const otherApp of otherOngoingApps) {
+        if (otherApp.job && (otherApp.job.ctc || 0) < dreamThreshold) {
+          otherApp.status = 'withdrawn';
+          await otherApp.save();
+
+          // Release/delete any scheduled interview slots for this candidate in the withdrawn job
+          await InterviewSlot.deleteMany({
+            candidate: application.user,
+            job: otherApp.job._id
+          });
+        }
+      }
+
       import('../utils/emailService.js').then(({ triggerPlacementCongratulationsEmail }) => {
         triggerPlacementCongratulationsEmail(user, job).catch(e => console.error('[Resend Placed Error]:', e));
       });

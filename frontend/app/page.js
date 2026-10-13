@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Sparkles, Briefcase, GraduationCap, ArrowRight, BrainCircuit, Activity, BarChart4 } from "lucide-react";
+import { Sparkles, Briefcase, GraduationCap, ArrowRight, BrainCircuit, Activity, BarChart4, Building2 } from "lucide-react";
 
 export default function Home() {
   const fadeInUp = {
@@ -68,16 +68,22 @@ export default function Home() {
 
           <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/dashboard">
-              <button className="px-8 py-3.5 rounded-2xl font-semibold text-white bg-[#8b9a6e] hover:bg-[#7b895e] transition-all flex items-center justify-center gap-2 w-full sm:w-auto shadow-sm hover:shadow-md">
+              <button className="px-6 py-3.5 rounded-2xl font-semibold text-white bg-[#8b9a6e] hover:bg-[#7b895e] transition-all flex items-center justify-center gap-2 w-full sm:w-auto shadow-sm hover:shadow-md">
                 <Briefcase size={18} />
                 Browse Jobs
                 <ArrowRight size={18} />
               </button>
             </Link>
+            <Link href="/companies">
+              <button className="px-6 py-3.5 rounded-2xl font-semibold text-[#333333] bg-white/60 hover:bg-white border border-gray-200 transition-all flex items-center justify-center gap-2 w-full sm:w-auto shadow-sm hover:shadow-md">
+                <Building2 size={18} />
+                Company Insights
+              </button>
+            </Link>
             <Link href="/alumni-experience">
-              <button className="px-8 py-3.5 rounded-2xl font-semibold text-[#333333] bg-white/60 hover:bg-white border border-gray-200 transition-all flex items-center justify-center gap-2 w-full sm:w-auto shadow-sm hover:shadow-md">
+              <button className="px-6 py-3.5 rounded-2xl font-semibold text-[#333333] bg-white/60 hover:bg-white border border-gray-200 transition-all flex items-center justify-center gap-2 w-full sm:w-auto shadow-sm hover:shadow-md">
                 <GraduationCap size={18} />
-                Learn from Alumni
+                Alumni Hub
               </button>
             </Link>
           </motion.div>
