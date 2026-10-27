@@ -1,0 +1,35 @@
+{
+  "model_type": "GradientBoostingClassifier (Ensemble Trees)",
+  "college": "The National Institute of Engineering (NIE), Mysore",
+  "training_samples": 1500,
+  "features": [
+    "cgpa",
+    "tenth_pct",
+    "twelfth_pct",
+    "active_backlogs",
+    "history_backlogs",
+    "dsa_score",
+    "skill_match",
+    "soft_skills",
+    "internships",
+    "projects"
+  ],
+  "metrics": {
+    "accuracy": 88.7,
+    "roc_auc": 0.83,
+    "precision": 47.1,
+    "recall": 24.2
+  },
+  "feature_importances": {
+    "dsa_score": 37.05,
+    "skill_match": 19.51,
+    "cgpa": 12.6,
+    "soft_skills": 9.46,
+    "twelfth_pct": 5.86,
+    "tenth_pct": 5.03,
+    "active_backlogs": 4.59,
+    "internships": 2.81,
+    "projects": 1.65,
+    "history_backlogs": 1.43
+  }
+}
