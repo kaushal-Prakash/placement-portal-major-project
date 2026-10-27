@@ -39,6 +39,12 @@ router.post('/admin/users', protect, adminOnly, async (req, res) => {
     // Save the user to the database
     await newUser.save();
 
+    res.status(201).json({ message: 'User created successfully', user: { id: newUser._id, name, email, role: newUser.role } });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 /**
  * @route POST /api/auth/admin/users/bulk
  * @desc Bulk import students from roster (Excel/CSV upload) - Admin Only
