@@ -410,6 +410,10 @@ Guidelines:
             "reply": f"Here is quick resume optimization feedback based on your profile:\n\n- Ensure all project bullet points follow the **Google X-Y-Z formula**: *Accomplished [X] as measured by [Y], by doing [Z]*.\n- Keep your technical skills section categorized: Languages, Frameworks, Databases, and Developer Tools.\n- Your identified strengths include: {skills_list}."
         }
     else:
+        return {
+            "reply": f"Hello! I am your **AI Career Copilot**. I can help you with:\n- Identifying skill gaps for specific company roles\n- Simulating hyper-personalized mock interviews\n- Advising what topics to study based on your resume ({skills_list})\n\nWhat role or company would you like to prepare for today?"
+        }
+
 # Load trained ML placement model if available
 try:
     import joblib
