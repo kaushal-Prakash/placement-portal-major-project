@@ -4,10 +4,10 @@
 **Semester:** VII | **Batch No:** B24  
 **Guide:** Ms. Padma M T, Assistant Professor  
 **Team Members:**   
-- Kaushal Prakash (4NI23IS084)
-- Jayantilal Mali (4NI23IS076)
-- Aditya Raj (4NI23IS251)
-- Ibaadur Rahman (4NI23IS073)
+- Kaushal Prakash
+- Jayantilal Mali
+- Aditya Raj
+- Ibaadur Rahman
 
 ---
 
