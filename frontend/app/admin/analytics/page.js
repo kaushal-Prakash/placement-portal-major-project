@@ -50,6 +50,7 @@ export default function AnalyticsDashboard() {
   const [pastTrends, setPastTrends] = useState(null);
   const [loading, setLoading] = useState(true);
   const [riskFilter, setRiskFilter] = useState("All");
+  const [rankingMode, setRankingMode] = useState("top"); // 'top' (Highest Chances / Best Resume) | 'risk' (At-Risk First)
   const [activeTab, setActiveTab] = useState("predictive"); // 'predictive' | 'historical'
 
   const branchComparison = useMemo(() => {
@@ -91,9 +92,19 @@ export default function AnalyticsDashboard() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const filteredPredictions = predictiveData?.filter(s => 
-    riskFilter === "All" || s.riskLevel === riskFilter
-  ) || [];
+  const filteredPredictions = useMemo(() => {
+    if (!Array.isArray(predictiveData)) return [];
+    let list = predictiveData.filter(s => 
+      riskFilter === "All" || s.riskLevel === riskFilter
+    );
+    if (rankingMode === "top") {
+      // Best resume & highest placement probability first
+      return [...list].sort((a, b) => b.placementProbability - a.placementProbability || b.avgMatchScore - a.avgMatchScore);
+    } else {
+      // Lowest placement probability first (early warning / at-risk)
+      return [...list].sort((a, b) => a.placementProbability - b.placementProbability || a.avgMatchScore - b.avgMatchScore);
+    }
+  }, [predictiveData, riskFilter, rankingMode]);
 
   const maxCompanyCount = data?.topCompanies?.length > 0 
     ? Math.max(...data.topCompanies.map(c => c.count)) 
@@ -311,35 +322,61 @@ export default function AnalyticsDashboard() {
               transition={{ delay: 0.6 }}
               className="bg-white/70 backdrop-blur-xl rounded-3xl p-7 shadow-xl border border-white/50"
             >
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-6">
                 <div>
                   <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5 text-orange-500" />
-                    ML Predictive Placement Risk Scoring
-                    <span className="ml-2 px-2.5 py-0.5 bg-orange-100 text-orange-700 text-xs font-bold rounded-full border border-orange-200">
-                      Early Warning Model
+                    <AlertTriangle className="w-5 h-5 text-[#8b9a6e]" />
+                    Internal Student Talent & Placement Readiness Ranking
+                    <span className="ml-2 px-2.5 py-0.5 bg-[#8b9a6e]/15 text-[#4b5834] text-xs font-bold rounded-full border border-[#8b9a6e]/30">
+                      {rankingMode === "top" ? "🌟 Top Talent First" : "⚠️ At-Risk First"}
                     </span>
                   </h2>
                   <p className="text-gray-500 text-sm mt-1">
-                    Powered by trained Gradient Boosting classifier on 1,500 historical NIE student records
+                    Internal ranking based on AI resume match score, coding assessment, and ML probability
                   </p>
                 </div>
                 
-                {/* Risk Filter */}
-                <div className="flex gap-2">
-                  {["All", "High", "Medium", "Low"].map(level => (
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Ranking Mode Toggle */}
+                  <div className="flex bg-gray-100 p-1 rounded-xl">
                     <button
-                      key={level}
-                      onClick={() => setRiskFilter(level)}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        riskFilter === level 
-                          ? "bg-gray-900 text-white shadow-md" 
-                          : "bg-white/60 text-gray-600 hover:bg-white/80 border border-white/50"
+                      onClick={() => setRankingMode("top")}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        rankingMode === "top"
+                          ? "bg-white text-gray-900 shadow-xs"
+                          : "text-gray-500 hover:text-gray-700"
                       }`}
                     >
-                      {level}
+                      Top Talent
                     </button>
-                  ))}
+                    <button
+                      onClick={() => setRankingMode("risk")}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        rankingMode === "risk"
+                          ? "bg-white text-gray-900 shadow-xs"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      At-Risk
+                    </button>
+                  </div>
+
+                  {/* Risk Filter */}
+                  <div className="flex gap-1.5">
+                    {["All", "High", "Medium", "Low"].map(level => (
+                      <button
+                        key={level}
+                        onClick={() => setRiskFilter(level)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                          riskFilter === level 
+                            ? "bg-gray-900 text-white shadow-md" 
+                            : "bg-white/60 text-gray-600 hover:bg-white/80 border border-white/50"
+                        }`}
+                      >
+                        {level}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -373,17 +410,28 @@ export default function AnalyticsDashboard() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-100">
+                      <th className="text-center text-xs font-bold text-gray-400 uppercase tracking-wider pb-3 w-12">Rank</th>
                       <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wider pb-3 pl-2">Student</th>
                       <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wider pb-3">Cohort</th>
                       <th className="text-center text-xs font-bold text-gray-400 uppercase tracking-wider pb-3">CGPA</th>
-                      <th className="text-center text-xs font-bold text-gray-400 uppercase tracking-wider pb-3">JD Match</th>
-                      <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wider pb-3">ML Probability</th>
+                      <th className="text-center text-xs font-bold text-gray-400 uppercase tracking-wider pb-3">AI Resume Match</th>
+                      <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wider pb-3">ML Placement Chance</th>
                       <th className="text-center text-xs font-bold text-gray-400 uppercase tracking-wider pb-3">Risk Assessment</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {filteredPredictions.slice(0, 15).map((student, idx) => (
                       <tr key={student._id || idx} className="hover:bg-white/50 transition-colors group">
+                        <td className="py-3.5 text-center">
+                          <span className={`inline-flex items-center justify-center w-6 h-6 rounded-lg text-xs font-black ${
+                            idx === 0 && rankingMode === "top" ? "bg-amber-100 text-amber-800 border border-amber-300" :
+                            idx === 1 && rankingMode === "top" ? "bg-slate-200 text-slate-700" :
+                            idx === 2 && rankingMode === "top" ? "bg-orange-100 text-orange-800" :
+                            "text-gray-400 font-semibold"
+                          }`}>
+                            #{idx + 1}
+                          </span>
+                        </td>
                         <td className="py-3.5 pl-2">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#8b9a6e]/20 to-[#8b9a6e]/5 flex items-center justify-center text-[#8b9a6e] font-bold text-sm shrink-0">
