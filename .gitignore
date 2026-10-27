@@ -9,3 +9,7 @@ ai/venv/
 venv/
 __pycache__/
 *.pyc
+*.pdf
+*.docx
+*.doc
+*.txt
