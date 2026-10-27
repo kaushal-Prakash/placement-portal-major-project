@@ -84,9 +84,9 @@ router.post('/', protect, async (req, res) => {
 /**
  * @route GET /api/feedback
  * @desc Get all feedback or filter by company
- * @access Private
+ * @access Public (all students and prospective candidates can read alumni insights)
  */
-router.get('/', protect, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { company, search } = req.query;
     let filter = {};
@@ -99,6 +99,7 @@ router.get('/', protect, async (req, res) => {
       filter.$or = [
         { company: new RegExp(search, 'i') },
         { jobTitle: new RegExp(search, 'i') },
+        { authorName: new RegExp(search, 'i') },
         { advice: new RegExp(search, 'i') },
         { interviewQuestions: new RegExp(search, 'i') }
       ];

@@ -35,16 +35,16 @@ export default function Navbar() {
 
   const navLinks = [
     { name: "Home", path: "/" },
+    { name: "Alumni Hub", path: "/alumni-experience" },
     { name: "About", path: "/about" },
     { name: "Contact", path: "/contact" },
   ];
 
   if (user) {
     if (user.role === "student") {
-      navLinks.push({ name: "Dashboard", path: "/dashboard" });
-      navLinks.push({ name: "Alumni Hub", path: "/alumni-experience" });
+      navLinks.splice(1, 0, { name: "Dashboard", path: "/dashboard" });
     } else if (user.role === "admin") {
-      navLinks.push({ name: "Admin Dashboard", path: "/admin" });
+      navLinks.splice(1, 0, { name: "Admin Dashboard", path: "/admin" });
     }
   }
 
