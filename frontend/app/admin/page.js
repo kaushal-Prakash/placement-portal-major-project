@@ -1,7 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Briefcase, GraduationCap, Building2, BarChart3, Banknote, ExternalLink, ArrowRight, Lock } from "lucide-react";
+import * as XLSX from "xlsx";
+import { 
+  Briefcase, GraduationCap, Building2, BarChart3, Banknote, 
+  ExternalLink, ArrowRight, Lock, Upload, FileSpreadsheet, 
+  X, CheckCircle2, Download, AlertCircle, Loader2 
+} from "lucide-react";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -14,6 +19,12 @@ export default function AdminDashboard() {
   const [newBranch, setNewBranch] = useState({ name: "", code: "" });
   const [batches, setBatches] = useState([]);
   const [newBatch, setNewBatch] = useState({ year: new Date().getFullYear() + 1, isActive: true });
+  
+  // Bulk Student Import states
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkFile, setBulkFile] = useState(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkMessage, setBulkMessage] = useState(null);
   
   const [formData, setFormData] = useState({
     title: "",
@@ -279,6 +290,124 @@ export default function AdminDashboard() {
     }
   };
 
+  const downloadSampleTemplate = () => {
+    const templateData = [
+      {
+        USN: "4NI23IS001",
+        Name: "Aarav Sharma",
+        Email: "aarav.sharma.4ni23is001@college.edu",
+        CGPA: 8.75,
+        Branch: "ISE",
+        Batch: 2027,
+        TenthMarks: 91.5,
+        TwelfthMarks: 89.0,
+        ActiveBacklogs: 0,
+        HistoryOfBacklogs: 0,
+        Skills: "React, Node.js, Python, MongoDB"
+      },
+      {
+        USN: "4NI23CS002",
+        Name: "Ananya Patel",
+        Email: "ananya.patel.4ni23cs002@college.edu",
+        CGPA: 9.12,
+        Branch: "CSE",
+        Batch: 2027,
+        TenthMarks: 94.0,
+        TwelfthMarks: 92.5,
+        ActiveBacklogs: 0,
+        HistoryOfBacklogs: 0,
+        Skills: "Java, Spring Boot, Docker, SQL"
+      }
+    ];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "StudentRoster");
+    XLSX.writeFile(wb, "Student_Roster_Template.xlsx");
+  };
+
+  const handleBulkUpload = async (e) => {
+    e.preventDefault();
+    if (!bulkFile) {
+      alert("Please select an Excel or CSV file first");
+      return;
+    }
+    setBulkLoading(true);
+    setBulkMessage(null);
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async (evt) => {
+        try {
+          const bstr = evt.target.result;
+          const wb = XLSX.read(bstr, { type: "binary" });
+          const wsname = wb.SheetNames[0];
+          const ws = wb.Sheets[wsname];
+          const rawData = XLSX.utils.sheet_to_json(ws);
+
+          if (!rawData || rawData.length === 0) {
+            setBulkMessage({ type: "error", text: "Spreadsheet contains no data rows." });
+            setBulkLoading(false);
+            return;
+          }
+
+          const students = rawData.map(row => {
+            const getVal = (...keys) => {
+              for (const k of keys) {
+                if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== "") return row[k];
+                const matched = Object.keys(row).find(orig => orig.toLowerCase().replace(/[^a-z0-9]/g, "") === k.toLowerCase().replace(/[^a-z0-9]/g, ""));
+                if (matched && row[matched] !== undefined) return row[matched];
+              }
+              return undefined;
+            };
+
+            return {
+              usn: getVal("usn", "rollno", "roll_no"),
+              name: getVal("name", "studentname", "fullname") || "Student",
+              email: getVal("email", "studentemail"),
+              cgpa: parseFloat(getVal("cgpa", "gpa")) || 7.5,
+              branch: getVal("branch", "department", "dept") || "CSE",
+              batch: getVal("batch", "year", "graduationyear") || 2027,
+              tenthMarks: parseFloat(getVal("tenthmarks", "10th", "tenth")) || 85,
+              twelfthMarks: parseFloat(getVal("twelfthmarks", "12th", "twelfth", "puc")) || 82,
+              activeBacklogs: parseInt(getVal("activebacklogs", "backlogs", "active_backlogs")) || 0,
+              historyOfBacklogs: parseInt(getVal("historyofbacklogs", "history_backlogs")) || 0,
+              skills: getVal("skills", "technicalskills") || "Problem Solving, Data Structures"
+            };
+          });
+
+          const token = localStorage.getItem("token");
+          const res = await fetch("http://localhost:5001/api/auth/admin/users/bulk", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ students })
+          });
+
+          const resData = await res.json();
+          if (res.ok) {
+            setBulkMessage({ type: "success", text: resData.message || `Processed ${students.length} students successfully!` });
+            setBulkFile(null);
+            fetchBatches();
+          } else {
+            setBulkMessage({ type: "error", text: resData.message || "Bulk import failed." });
+          }
+        } catch (parseErr) {
+          console.error(parseErr);
+          setBulkMessage({ type: "error", text: "Failed to parse spreadsheet file: " + parseErr.message });
+        } finally {
+          setBulkLoading(false);
+        }
+      };
+      reader.readAsBinaryString(bulkFile);
+    } catch (err) {
+      console.error(err);
+      setBulkMessage({ type: "error", text: "Error reading file: " + err.message });
+      setBulkLoading(false);
+    }
+  };
+
   if (!user) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-8 h-8 border-2 border-[#8b9a6e] border-t-transparent rounded-full animate-spin" />
@@ -300,6 +429,13 @@ export default function AdminDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setShowBulkModal(true)}
+              className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-all shadow-xs flex items-center gap-2"
+            >
+              <Upload className="w-4 h-4 text-[#8b9a6e]" />
+              <span>Bulk Student Import</span>
+            </button>
             <button 
               onClick={() => router.push("/admin/analytics")}
               className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#8b9a6e] to-[#5b6a3e] text-white text-sm font-semibold hover:opacity-90 transition-all shadow-md flex items-center gap-2"
@@ -722,7 +858,105 @@ export default function AdminDashboard() {
           </div>
         </main>
       )}
+
+      {/* Bulk Student Import Modal */}
+      {showBulkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-gray-100 relative animate-in fade-in zoom-in duration-200">
+            <button
+              onClick={() => { setShowBulkModal(false); setBulkMessage(null); setBulkFile(null); }}
+              className="absolute top-5 right-5 p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-2xl bg-[#8b9a6e]/15 flex items-center justify-center text-[#8b9a6e]">
+                <FileSpreadsheet className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Bulk Student Roster Import</h3>
+                <p className="text-xs text-gray-500">Upload batch spreadsheets directly into database</p>
+              </div>
+            </div>
+
+            <div className="my-5 p-4 rounded-2xl bg-amber-50/70 border border-amber-200/60 text-xs text-amber-900 flex items-start justify-between gap-3">
+              <div>
+                <p className="font-bold mb-1">Standard Spreadsheet Format:</p>
+                <p className="text-amber-800">
+                  Columns: <code className="bg-amber-100/80 px-1 py-0.5 rounded">USN</code>, <code className="bg-amber-100/80 px-1 py-0.5 rounded">Name</code>, <code className="bg-amber-100/80 px-1 py-0.5 rounded">CGPA</code>, <code className="bg-amber-100/80 px-1 py-0.5 rounded">Branch</code>, <code className="bg-amber-100/80 px-1 py-0.5 rounded">Batch</code>, <code className="bg-amber-100/80 px-1 py-0.5 rounded">Backlogs</code>. Default password is <span className="font-semibold">student123</span>.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={downloadSampleTemplate}
+                className="shrink-0 px-3 py-1.5 rounded-xl bg-white border border-amber-300 text-amber-900 font-bold hover:bg-amber-100/50 shadow-xs flex items-center gap-1.5 transition"
+              >
+                <Download className="w-3.5 h-3.5 text-amber-700" />
+                Template
+              </button>
+            </div>
+
+            <form onSubmit={handleBulkUpload} className="space-y-4">
+              <div className="border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center hover:border-[#8b9a6e] transition-colors cursor-pointer relative bg-gray-50/50">
+                <input
+                  type="file"
+                  accept=".xlsx, .xls, .csv"
+                  onChange={e => {
+                    if (e.target.files?.[0]) {
+                      setBulkFile(e.target.files[0]);
+                      setBulkMessage(null);
+                    }
+                  }}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                />
+                <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm font-semibold text-gray-700">
+                  {bulkFile ? bulkFile.name : "Drag & drop Excel (.xlsx, .csv) file here"}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">Supports multi-branch cohort sheets up to 10MB</p>
+              </div>
+
+              {bulkMessage && (
+                <div className={`p-4 rounded-2xl text-xs font-semibold flex items-center gap-2 ${
+                  bulkMessage.type === "success" 
+                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200" 
+                    : "bg-red-50 text-red-800 border border-red-200"
+                }`}>
+                  {bulkMessage.type === "success" ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                  <span>{bulkMessage.text}</span>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBulkModal(false)}
+                  className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!bulkFile || bulkLoading}
+                  className="flex-1 py-3 rounded-xl bg-gradient-to-r from-[#8b9a6e] to-[#5b6a3e] text-white font-bold text-sm shadow-md hover:opacity-95 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {bulkLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Ingesting Roster...</span>
+                    </>
+                  ) : (
+                    <span>Import Students</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );
 }
+

@@ -39,12 +39,125 @@ router.post('/admin/users', protect, adminOnly, async (req, res) => {
     // Save the user to the database
     await newUser.save();
 
-    // Do NOT return a JWT token since the admin is the one creating it, just return success
-    res.status(201).json({ message: 'User created successfully', user: { id: newUser._id, name, email, role: newUser.role } });
+/**
+ * @route POST /api/auth/admin/users/bulk
+ * @desc Bulk import students from roster (Excel/CSV upload) - Admin Only
+ * @access Private/Admin
+ */
+router.post('/admin/users/bulk', protect, adminOnly, async (req, res) => {
+  try {
+    const { students } = req.body;
+    if (!Array.isArray(students) || students.length === 0) {
+      return res.status(400).json({ message: 'students must be a non-empty array' });
+    }
+
+    const Branch = (await import('../models/Branch.js')).default;
+    const Batch = (await import('../models/Batch.js')).default;
+
+    const branches = await Branch.find();
+    const batches = await Batch.find();
+
+    const branchMap = {};
+    branches.forEach(b => { branchMap[b.code.toUpperCase()] = b._id; });
+
+    const batchMap = {};
+    batches.forEach(b => { batchMap[String(b.year)] = b._id; });
+
+    const defaultHashedPassword = await bcrypt.hash('student123', 10);
+    let createdCount = 0;
+    let updatedCount = 0;
+
+    for (const item of students) {
+      if (!item.name || (!item.email && !item.usn)) continue;
+
+      const usn = item.usn ? String(item.usn).trim().toUpperCase() : null;
+      const email = item.email ? String(item.email).trim().toLowerCase() : `${usn.toLowerCase()}@college.edu`;
+      
+      let branchId = null;
+      if (item.branch) {
+        const bCode = String(item.branch).trim().toUpperCase();
+        if (branchMap[bCode]) {
+          branchId = branchMap[bCode];
+        } else {
+          const newB = await Branch.create({ code: bCode, name: `${bCode} Department` });
+          branchMap[bCode] = newB._id;
+          branchId = newB._id;
+        }
+      }
+
+      let batchId = null;
+      if (item.batch) {
+        const bYear = String(item.batch).trim();
+        if (batchMap[bYear]) {
+          batchId = batchMap[bYear];
+        } else {
+          const newBatch = await Batch.create({ year: parseInt(bYear) || 2026, isActive: true });
+          batchMap[bYear] = newBatch._id;
+          batchId = newBatch._id;
+        }
+      }
+
+      const cgpa = item.cgpa !== undefined && item.cgpa !== null ? parseFloat(item.cgpa) : 7.5;
+      const tenth = item.tenthMarks !== undefined ? parseFloat(item.tenthMarks) : 85.0;
+      const twelfth = item.twelfthMarks !== undefined ? parseFloat(item.twelfthMarks) : 82.0;
+      const activeBacklogs = item.activeBacklogs !== undefined ? parseInt(item.activeBacklogs) : 0;
+      const historyBacklogs = item.historyOfBacklogs !== undefined ? parseInt(item.historyOfBacklogs) : activeBacklogs;
+
+      const rawSkills = item.skills || [];
+      const skills = Array.isArray(rawSkills) ? rawSkills : String(rawSkills).split(',').map(s => s.trim()).filter(Boolean);
+
+      const existing = await User.findOne({
+        $or: [
+          ...(usn ? [{ usn }] : []),
+          { email }
+        ]
+      });
+
+      if (!existing) {
+        await User.create({
+          name: item.name,
+          email,
+          usn,
+          password: defaultHashedPassword,
+          role: 'student',
+          branch: branchId,
+          batch: batchId,
+          cgpa,
+          tenthMarks: tenth,
+          twelfthMarks: twelfth,
+          activeBacklogs,
+          historyOfBacklogs: historyBacklogs,
+          skills: skills.length > 0 ? skills : ['Problem Solving', 'Data Structures'],
+          isPlaced: false,
+          isBlacklisted: false
+        });
+        createdCount++;
+      } else {
+        await User.findByIdAndUpdate(existing._id, {
+          name: item.name,
+          ...(branchId && { branch: branchId }),
+          ...(batchId && { batch: batchId }),
+          cgpa,
+          tenthMarks: tenth,
+          twelfthMarks: twelfth,
+          activeBacklogs,
+          historyOfBacklogs: historyBacklogs,
+          ...(skills.length > 0 && { skills })
+        });
+        updatedCount++;
+      }
+    }
+
+    res.json({
+      message: `Bulk processing complete. Created: ${createdCount}, Updated: ${updatedCount}`,
+      createdCount,
+      updatedCount
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: 'Server error in bulk user creation', error: error.message });
   }
 });
+
 
 /**
  * @route PUT /api/auth/admin/users/:id
