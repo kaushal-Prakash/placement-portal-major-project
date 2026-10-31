@@ -1,6 +1,8 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import asyncio
 import numpy as np
 import re
 import math
@@ -356,14 +358,78 @@ Ask one focused question at a time. Probe their skills and any gaps in their res
             "reply": "Thank you for completing this technical mock interview round! 🎯\n\n**Evaluation & Key Takeaways:**\n- **Strengths:** Clear architectural breakdown and confident explanations.\n- **Improvement Areas:** Make sure to articulate time/space complexity tradeoffs early when discussing solutions.\n- **Recommended Next Step:** Deepen your hands-on revision of the skills highlighted in your skill-gap report before the final on-site round."
         }
 
+def get_copilot_fallback_reply(resume_text: str, user_message: str, rag_context: str) -> str:
+    if rag_context:
+        return f"Here is the verified placement intelligence retrieved from our college archives:\n\n{rag_context}\n\n**Key Recommendation:** Deeply revise the specific interview questions listed above, and be prepared to justify time and space complexity tradeoffs for each algorithm."
+    user_msg_lower = user_message.lower()
+    skills = extract_skills_from_text(resume_text)
+    skills_list = ", ".join(list(skills)[:5]) if skills else "your technical skills"
+
+    if "study" in user_msg_lower or "prepare" in user_msg_lower:
+        return f"Based on your profile showcasing **{skills_list}**, here is your priority placement preparation roadmap:\n\n1. **Data Structures & Algorithms:** Review Trees, Graphs, Dynamic Programming, and Binary Search patterns (aim for 2-3 LeetCode mediums daily).\n2. **System Fundamentals:** Deepen OS concepts (Threads vs Processes, Deadlocks) and DBMS (Indexing, Normalization, ACID properties).\n3. **Projects Deep Dive:** Be ready to justify architectural decisions and edge-case handling for every project on your resume."
+    elif "resume" in user_msg_lower or "feedback" in user_msg_lower:
+        return f"Here is quick resume optimization feedback based on your profile:\n\n- Ensure all project bullet points follow the **Google X-Y-Z formula**: *Accomplished [X] as measured by [Y], by doing [Z]*.\n- Keep your technical skills section categorized: Languages, Frameworks, Databases, and Developer Tools.\n- Your identified strengths include: {skills_list}."
+    else:
+        return f"Hello! I am your **AI Career Copilot**. I can help you with:\n- Identifying skill gaps for specific company roles\n- Simulating hyper-personalized mock interviews\n- Advising what topics to study based on your resume ({skills_list})\n\nWhat role or company would you like to prepare for today?"
+
 class ChatRequest(BaseModel):
     resume_text: str
     user_message: str
     chat_history: list[dict] = []
     rag_context: str = ""
+    stream: bool = False
 
 @app.post("/api/copilot/chat")
 async def copilot_chat(request: ChatRequest):
+    rag_section = f"\n\nVerified College Placement Intelligence (RAG Grounding):\n{request.rag_context}" if request.rag_context else ""
+    system_prompt = f"""You are the official AI Career Copilot for college placements.
+Candidate Resume:
+{request.resume_text}{rag_section}
+
+Guidelines:
+- Ground your responses directly in the Verified College Placement Intelligence whenever answering questions regarding specific companies, previous interview rounds, packages, or questions asked to seniors.
+- Format responses cleanly with structured Markdown headers, bullet points, and bold terms.
+- Be structured, concise, and technically rigorous.
+- Avoid emoji characters in responses."""
+
+    if request.stream:
+        async def event_generator():
+            api_key = get_gemini_api_key()
+            if api_key:
+                try:
+                    from langchain_google_genai import ChatGoogleGenerativeAI
+                    from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+
+                    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key)
+                    messages = [SystemMessage(content=system_prompt)]
+                    for msg in request.chat_history:
+                        if msg.get("role") == "user":
+                            messages.append(HumanMessage(content=msg.get("content", "")))
+                        elif msg.get("role") == "assistant":
+                            messages.append(AIMessage(content=msg.get("content", "")))
+                    messages.append(HumanMessage(content=request.user_message))
+
+                    async for chunk in llm.astream(messages):
+                        content = chunk.content if hasattr(chunk, "content") else str(chunk)
+                        if content:
+                            yield f"data: {json.dumps({'content': content})}\n\n"
+                    yield "data: [DONE]\n\n"
+                    return
+                except Exception as e:
+                    print(f"[Gemini Copilot Stream Error]: {e}")
+
+            # Fallback streaming when API key is missing or failed
+            fallback_text = get_copilot_fallback_reply(request.resume_text, request.user_message, request.rag_context)
+            words = fallback_text.split(" ")
+            for i in range(0, len(words), 3):
+                chunk = " ".join(words[i:i+3]) + (" " if i + 3 < len(words) else "")
+                yield f"data: {json.dumps({'content': chunk})}\n\n"
+                await asyncio.sleep(0.015)
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+    # Non-streaming request handling
     api_key = get_gemini_api_key()
     if api_key:
         try:
@@ -371,48 +437,20 @@ async def copilot_chat(request: ChatRequest):
             from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
             llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key)
-            rag_section = f"\n\nVerified College Placement Intelligence (RAG Grounding):\n{request.rag_context}" if request.rag_context else ""
-            system_prompt = f"""You are the official AI Career Copilot for college placements.
-Candidate Resume:
-{request.resume_text}{rag_section}
-
-Guidelines:
-- Ground your responses directly in the Verified College Placement Intelligence whenever answering questions regarding specific companies, previous interview rounds, packages, or questions asked to seniors.
-- Be structured, concise, and technically rigorous.
-- Avoid emoji characters in responses."""
             messages = [SystemMessage(content=system_prompt)]
             for msg in request.chat_history:
-                if msg["role"] == "user":
-                    messages.append(HumanMessage(content=msg["content"]))
-                elif msg["role"] == "assistant":
-                    messages.append(AIMessage(content=msg["content"]))
+                if msg.get("role") == "user":
+                    messages.append(HumanMessage(content=msg.get("content", "")))
+                elif msg.get("role") == "assistant":
+                    messages.append(AIMessage(content=msg.get("content", "")))
             messages.append(HumanMessage(content=request.user_message))
             response = llm.invoke(messages)
             return {"reply": response.content}
         except Exception as e:
             print(f"[Gemini Copilot Error]: {e}")
 
-    # Built-in contextual placement mentor with RAG grounding fallback
-    if request.rag_context:
-        return {
-            "reply": f"Here is the verified placement intelligence retrieved from our college archives:\n\n{request.rag_context}\n\n**Key Recommendation:** Deeply revise the specific interview questions listed above, and be prepared to justify time and space complexity tradeoffs for each algorithm."
-        }
-    user_msg_lower = request.user_message.lower()
-    skills = extract_skills_from_text(request.resume_text)
-    skills_list = ", ".join(list(skills)[:5]) if skills else "your technical skills"
-
-    if "study" in user_msg_lower or "prepare" in user_msg_lower:
-        return {
-            "reply": f"Based on your profile showcasing **{skills_list}**, here is your priority placement preparation roadmap:\n\n1. **Data Structures & Algorithms:** Review Trees, Graphs, Dynamic Programming, and Binary Search patterns (aim for 2-3 LeetCode mediums daily).\n2. **System Fundamentals:** Deepen OS concepts (Threads vs Processes, Deadlocks) and DBMS (Indexing, Normalization, ACID properties).\n3. **Projects Deep Dive:** Be ready to justify architectural decisions and edge-case handling for every project on your resume."
-        }
-    elif "resume" in user_msg_lower or "feedback" in user_msg_lower:
-        return {
-            "reply": f"Here is quick resume optimization feedback based on your profile:\n\n- Ensure all project bullet points follow the **Google X-Y-Z formula**: *Accomplished [X] as measured by [Y], by doing [Z]*.\n- Keep your technical skills section categorized: Languages, Frameworks, Databases, and Developer Tools.\n- Your identified strengths include: {skills_list}."
-        }
-    else:
-        return {
-            "reply": f"Hello! I am your **AI Career Copilot**. I can help you with:\n- Identifying skill gaps for specific company roles\n- Simulating hyper-personalized mock interviews\n- Advising what topics to study based on your resume ({skills_list})\n\nWhat role or company would you like to prepare for today?"
-        }
+    fallback_text = get_copilot_fallback_reply(request.resume_text, request.user_message, request.rag_context)
+    return {"reply": fallback_text}
 
 # Load trained ML placement model if available
 try:

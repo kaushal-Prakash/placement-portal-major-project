@@ -205,7 +205,7 @@ router.post('/mock-interview', protect, async (req, res) => {
  */
 router.post('/chat', protect, async (req, res) => {
   try {
-    const { message, chatHistory } = req.body;
+    const { message, chatHistory, stream = true } = req.body;
     const userId = req.user.id;
 
     if (req.user.role !== 'student') {
@@ -218,7 +218,65 @@ router.post('/chat', protect, async (req, res) => {
     // Retrieve authentic college placement knowledge (RAG System)
     const ragContext = await retrieveCollegePlacementKnowledge(message);
 
-    // Forward to FastAPI microservice via Express with RAG context
+    // Helper to generate fallback text
+    const getFallbackText = () => {
+      if (ragContext) {
+        return `Here is the verified placement intelligence from our college archives:\n\n${ragContext}\n\n**Actionable Advice:** Deepen your revision of the tested topics above and prepare your resume projects with clear complexity explanations.`;
+      }
+      const msg = (message || '').toLowerCase();
+      const skillsList = (user.skills || []).join(', ') || 'programming fundamentals';
+      if (msg.includes('study') || msg.includes('prep') || msg.includes('dsa')) {
+        return `Based on your profile showcasing **${skillsList}**, here is your priority placement preparation plan:\n\n1. **Data Structures & Algorithms:** Practice Medium-level problems on LeetCode across Binary Search, Dynamic Programming, and Graph Traversals (BFS/DFS).\n2. **Core CS Fundamentals:** Revise Operating Systems (Paging, Thread synchronization, Deadlocks) and Database Management (Indexing, Normalization, ACID properties).\n3. **System Design:** Prepare high-level architecture designs for URL shorteners, Rate limiters, and Cache architectures.`;
+      } else if (msg.includes('resume') || msg.includes('project')) {
+        return `Here are 3 resume tips based on campus placement standards:\n\n- **Quantify Impact:** Use metrics like *\"Reduced API response latency by 35%\"* instead of generic descriptions.\n- **Highlight Your Stack:** Ensure skills like ${skillsList} are reflected directly in project bullet points.\n- **Clean Formatting:** Keep sections structured with clear Dates, Technologies used, and GitHub links.`;
+      } else {
+        return `Hello ${user.name}! I am your **AI Placement Copilot**.\n\nI can assist you with:\n- Identifying missing skill gaps for top recruiters\n- Personalized mock interviews and practice questions\n- Strategic preparation roadmaps for your upcoming drives\n\nWhat role or company are you preparing for?`;
+      }
+    };
+
+    if (stream) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      if (typeof res.flushHeaders === 'function') {
+        res.flushHeaders();
+      }
+
+      // Forward to FastAPI microservice with stream=true
+      try {
+        const aiRes = await fetch('http://localhost:8000/api/copilot/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            resume_text: resumeText || (user.skills || []).join(', ') || 'Engineering Student',
+            user_message: message,
+            chat_history: chatHistory || [],
+            rag_context: ragContext,
+            stream: true
+          })
+        });
+
+        if (aiRes.ok && aiRes.body) {
+          aiRes.body.pipe(res);
+          return;
+        }
+      } catch (aiErr) {
+        console.warn('[Copilot Chat Route] FastAPI stream unavailable. Using Express fallback:', aiErr.message);
+      }
+
+      // Stream Express Fallback using SSE
+      const fallbackText = getFallbackText();
+      const words = fallbackText.split(' ');
+      for (let i = 0; i < words.length; i += 3) {
+        const chunk = words.slice(i, i + 3).join(' ') + (i + 3 < words.length ? ' ' : '');
+        res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+        await new Promise(r => setTimeout(r, 20));
+      }
+      res.write('data: [DONE]\n\n');
+      return res.end();
+    }
+
+    // Non-streaming request handling
     try {
       const aiRes = await fetch('http://localhost:8000/api/copilot/chat', {
         method: 'POST',
@@ -227,7 +285,8 @@ router.post('/chat', protect, async (req, res) => {
           resume_text: resumeText || (user.skills || []).join(', ') || 'Engineering Student',
           user_message: message,
           chat_history: chatHistory || [],
-          rag_context: ragContext
+          rag_context: ragContext,
+          stream: false
         })
       });
 
@@ -239,29 +298,8 @@ router.post('/chat', protect, async (req, res) => {
       console.warn('[Copilot Chat Route] FastAPI service unavailable. Using Express fallback:', aiErr.message);
     }
 
-    // Express Local Intelligent Fallback grounded in RAG Context
-    if (ragContext) {
-      return res.json({
-        reply: `Here is the verified placement intelligence from our college archives:\n\n${ragContext}\n\n**Actionable Advice:** Deepen your revision of the tested topics above and prepare your resume projects with clear complexity explanations.`
-      });
-    }
-
-    const msg = (message || '').toLowerCase();
-    const skillsList = (user.skills || []).join(', ') || 'programming fundamentals';
-
-    if (msg.includes('study') || msg.includes('prep') || msg.includes('dsa')) {
-      return res.json({
-        reply: `Based on your profile showcasing **${skillsList}**, here is your priority placement preparation plan:\n\n1. **Data Structures & Algorithms:** Practice Medium-level problems on LeetCode across Binary Search, Dynamic Programming, and Graph Traversals (BFS/DFS).\n2. **Core CS Fundamentals:** Revise Operating Systems (Paging, Thread synchronization, Deadlocks) and Database Management (Indexing, Transactions, Normalization).\n3. **System Design:** Prepare high-level architecture designs for URL shorteners, Rate limiters, and Cache architectures.`
-      });
-    } else if (msg.includes('resume') || msg.includes('project')) {
-      return res.json({
-        reply: `Here are 3 resume tips based on campus placement standards:\n\n- **Quantify Impact:** Use metrics like *"Reduced API response latency by 35%"* instead of generic descriptions.\n- **Highlight Your Stack:** Ensure skills like ${skillsList} are reflected directly in project bullet points.\n- **Clean Formatting:** Keep sections structured with clear Dates, Technologies used, and GitHub links.`
-      });
-    } else {
-      return res.json({
-        reply: `Hello ${user.name}! I am your **AI Placement Copilot**.\n\nI can assist you with:\n- Identifying missing skill gaps for top recruiters\n- Personalized mock interviews and practice questions\n- Strategic preparation roadmaps for your upcoming drives\n\nWhat role or company are you preparing for?`
-      });
-    }
+    const fallbackText = getFallbackText();
+    return res.json({ reply: fallbackText });
   } catch (error) {
     console.error("Copilot chat route error:", error);
     res.status(500).json({ message: 'Server error', error: error.message });
