@@ -82,10 +82,10 @@ The platform is built on a robust, scalable 3-tier architecture:
 
 | # | Feature Domain | Status | Key Components Implemented |
 |---|----------------|:------:|----------------------------|
-| **1** | **Two-Tier Shortlisting (Eligibility + AI Matching)** | ✅ Complete | Academic eligibility engine (`rulesEngine.js` for CGPA, backlogs, branch, batch) + AI Cosine Similarity score against JD (`ai/main.py` & `applicationRoutes.js`). |
+| **1** | **Two-Tier Shortlisting (Eligibility + AI Matching)** | ✅ Complete | Academic eligibility engine (`rulesEngine.js` for CGPA, backlogs, branch, batch) + AI Cosine Similarity score against JD (`ai/main.py`, `applicationRoutes.js`) + Admin On-Demand Rescore Toolbar (`POST /api/applications/job/:jobId/rescore`, `CompanyDrivePage`). |
 | **2** | **Alumni Experience Hub & Knowledge Loop** | ✅ Complete | Comprehensive alumni interview review hub, round-by-round breakdown, ratings, verified senior Q&A repository, and automatic placed student contribution triggers (`frontend/app/alumni-experience`, `feedbackRoutes.js`, `college_knowledge_bank`). |
 | **3** | **Company Intelligence & Placement Analytics** | ✅ Complete | Live intelligence dashboard showing historical packages, conversion rates, frequently tested technical skills (`frontend/app/companies`, `companyRoutes.js`). |
-| **4** | **AI Career Copilot (Conversational RAG Assistant)** | ✅ Complete | Interactive chatbot utilizing RAG over parsed PDF resumes + verified NIE placement question archives + Gemini LLM fallback (`copilotRoutes.js`, `frontend/app/dashboard/copilot`). |
+| **4** | **AI Career Copilot (Conversational RAG Assistant)** | ✅ Complete | Interactive chatbot utilizing real-time Server-Sent Events (SSE) token streaming + structured ReactMarkdown rendering over parsed PDF resumes + verified NIE placement question archives + Gemini LLM fallback (`copilotRoutes.js`, `frontend/app/dashboard/copilot`). |
 | **5** | **Predictive Placement Analytics (ML Model & Trends)** | ✅ Complete | 1,500-sample longitudinal NIE Mysore synthetic dataset, trained Gradient Boosting ensemble (88.7% accuracy), feature importance analytics (DSA, Skill Match, CGPA), and 5-year historical trends (`analyticsRoutes.js`, `ai/train_placement_ml.py`, `frontend/app/admin/analytics`). |
 | **6** | **AI Mock Interviews & Voice Skill-Gap Analysis** | ✅ Complete | Role-specific skill gap analysis with missing skill recommendations, interactive voice-enabled mock interviewer with Speech-to-Text & Text-to-Speech (`frontend/app/dashboard/mock-interview/[jobId]`). |
 | **7** | **Institutional Policy & Offer Rules (IIT-Style)** | ✅ Complete | One-Student-One-Job policy, dream company 1.5x package threshold, and automatic cascade auto-withdrawal of pending applications upon accepting an offer (`rulesEngine.js`, `applicationRoutes.js`). |
@@ -96,9 +96,9 @@ The platform is built on a robust, scalable 3-tier architecture:
 ## 📝 Concise Project Report: What Has Been Implemented
 
 1. **Full-Stack 3-Tier Architecture**:
-   - **Frontend (Next.js 14 / React / TailwindCSS / Framer Motion)**: Complete dual dashboards for Students and Admins, modern responsive UI, interactive charts, and live search/filtering.
-   - **Backend (Node.js / Express / Mongoose)**: JWT authentication, modular REST APIs for jobs, applications, batches, branches, feedbacks, analytics, bulk student onboarding, and interview slots.
-   - **AI Microservice (FastAPI / PyMuPDF / Scikit-Learn / LangChain)**: Real-time PDF resume text extraction, semantic similarity embeddings, trained ML placement probability model, and automated skill-gap identification.
+   - **Frontend (Next.js 16 / React 19 / TailwindCSS / Framer Motion / ReactMarkdown)**: Complete dual dashboards for Students and Admins, real-time SSE token stream consumer, rich Markdown formatting, interactive charts, and live search/filtering.
+   - **Backend (Node.js / Express / Mongoose)**: JWT authentication, modular REST APIs for jobs, applications, batches, branches, feedbacks, analytics, bulk student onboarding, interview slots, and SSE streaming pipeline proxying.
+   - **AI Microservice (FastAPI / PyMuPDF / Scikit-Learn / LangChain)**: Real-time PDF resume text extraction, high-speed TF-IDF & ONNX semantic similarity embeddings, trained ML placement probability model, role skill-gap identification, and asynchronous token streaming with Gemini 1.5 Flash.
 2. **Curated Database & Rich RAG Knowledge Bank**:
    - 4 primary verified campus recruiters (Google, FitTech, BMW, Fidelity Investments) and purged orphan dummy records.
    - Rich alumni interview reviews for Google, BMW, FitTech, Fidelity, Cisco, Akamai, and Schneider Electric with actual rounds, questions, and preparation advice.
@@ -108,10 +108,12 @@ The platform is built on a robust, scalable 3-tier architecture:
    - Trained Gradient Boosting Classifier evaluating student features (DSA assessment, resume match, CGPA, backlogs penalty).
    - Dedicated analytics dashboard with Year-over-Year trends, branch-wise placement rates, and feature importance breakdown.
 4. **Core Workflow Integrations**:
-   - Bulk student roster import (`.xlsx` / `.csv`) with 1-click sample template generator for placement coordinators.
-   - Smart Job Feed dynamically ranked by individual resume match scores.
-   - Candidate roster export directly to Excel (`.xlsx`) and 1-click sharing via WhatsApp and Email for placement coordinators.
-   - Voice-interactive AI mock interviews with real-time speech recognition and audio synthesis.
+   - **Admin On-Demand Rescoring Toolbar**: 1-click recalculation of AI match scores for candidate applications submitted while AI service was offline (`POST /api/applications/job/:jobId/rescore`).
+   - **Automated Email Notification Dispatch**: Automated HTML email triggers via Resend for Shortlisted candidates, Interview Slot bookings, and Placement Offer congratulations with alumni review prompts (`emailService.js`).
+   - **Bulk Student Roster Import**: Spreadsheet onboarding (`.xlsx` / `.csv`) with 1-click sample template generator for placement coordinators.
+   - **Smart Job Feed**: Dynamic campus feed ranked by individual candidate resume match scores.
+   - **Roster Export & Sharing**: Candidate interview rosters exportable directly to Excel (`.xlsx`) with 1-click sharing via WhatsApp and Email for placement coordinators.
+   - **Voice-Interactive AI Mock Interviews**: Live speech recognition (STT) and voice synthesis (TTS) with role-targeted skill-gap questions.
 
 ---
 
@@ -122,14 +124,16 @@ The platform is built on a robust, scalable 3-tier architecture:
 - [x] **Longitudinal Synthetic Dataset & ML Model**: Built 1,500-sample Tier-3 (NIE Mysore) placement dataset and trained Gradient Boosting classifier with 88.7% accuracy and feature importance rankings.
 - [x] **Cascade Application Auto-Withdrawal**: Automatically withdraws lower-tier ongoing applications upon offer acceptance per IIT Day-1 policies.
 - [x] **Bulk Student Import (CSV/Excel)**: Placement cell coordinators can onboard entire batches via spreadsheet upload with sample template download.
+- [x] **Real-Time SSE Copilot Streaming & Rich Markdown Formatting**: Implemented end-to-end token streaming (FastAPI -> Express -> Next.js) and clean typography rendering with `react-markdown` and `remark-gfm`.
+- [x] **Admin On-Demand AI Match Recalculator**: Added dedicated rescore endpoint and admin UI button to backfill/recalculate candidate match scores on demand.
+- [x] **Automated Resend Email Triggers**: Integrated email triggers for candidate shortlisting, scheduled interview slots, and placement offers (`emailService.js`).
 
-### Phase 2: System Hardening & Polish
-- [ ] **Email Notification Dispatch**: Connect automated status alerts (Interview Scheduled, Shortlisted, Offer Released) via Resend.
-- [ ] **Custom College Drive Scheduling**: Granular custom break intervals and multi-panel interviewer assignment.
+### Phase 2: Production Scaling (Optional Future Work)
+- [ ] **Resend Custom College Domain Verification**: Transition from default sandbox sender (`onboarding@resend.dev`) to a verified institutional domain (e.g., `@nie.ac.in`) for live delivery to any recipient.
+- [ ] **Multi-Panel Parallel Interview Scheduling**: Extend the conflict-free scheduling engine to distribute candidates simultaneously across multiple parallel interview panels (Panel A, B, C) instead of a single sequential queue.
 
 ### Phase 3: Final Presentation & Defense Prep
-- [ ] **Demo Video & Live Presentation Slides**: Create mock walkthrough scenarios covering both Student and Admin user flows.
-- [ ] **Performance Benchmarks**: Document resume parsing speed and embedding latency metrics for the project viva report.
+- [ ] **Demo Video & Live Presentation Slides**: Create walkthrough video scenario covering both Student and Admin user flows for the final college evaluation.
 
 ---
 
