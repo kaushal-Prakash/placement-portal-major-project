@@ -7,7 +7,7 @@ import {
   FileCheck, Calendar, Award, Search, ArrowUpDown, Download, Share2, 
   ExternalLink, FileText, CheckCircle, AlertCircle, Clock, Copy, 
   Check, Mail, BookOpen, Layers, RefreshCw, ChevronDown, Filter, Lock,
-  Trash2, ChevronRight, FileSpreadsheet, UserCheck
+  Trash2, ChevronRight, FileSpreadsheet, UserCheck, Sparkles
 } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -38,6 +38,8 @@ export default function CompanyDrivePage() {
   const [selectedAppIds, setSelectedAppIds] = useState(new Set());
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isTogglingJobStatus, setIsTogglingJobStatus] = useState(false);
+  const [isRescoring, setIsRescoring] = useState(false);
+  const [rescoreMsg, setRescoreMsg] = useState("");
   
   // Share modal state
   const [showShareModal, setShowShareModal] = useState(false);
@@ -157,6 +159,37 @@ export default function CompanyDrivePage() {
       alert("Error performing bulk status update");
     } finally {
       setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleRescoreApplications = async (force = false) => {
+    setIsRescoring(true);
+    setRescoreMsg("");
+    const token = localStorage.getItem("token");
+    try {
+      const res = await fetch(`http://localhost:5001/api/applications/job/${jobId}/rescore`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ force })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (Array.isArray(data.applications)) {
+          setApplications(data.applications);
+        }
+        setRescoreMsg(data.message || "Recalculation complete.");
+        setTimeout(() => setRescoreMsg(""), 5000);
+      } else {
+        alert(data.message || "Failed to recalculate AI scores");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error recalculating AI match scores. Ensure backend and AI microservice are running.");
+    } finally {
+      setIsRescoring(false);
     }
   };
 
@@ -1249,8 +1282,35 @@ export default function CompanyDrivePage() {
               <span className="text-xs font-bold px-3 py-2 bg-[#8b9a6e]/10 text-[#5b6a3e] rounded-xl">
                 Showing {processedApplications.length} of {applications.length}
               </span>
+
+              {/* Unscored Candidates Alert Badge */}
+              {applications.some(a => a.matchScore === null || a.matchScore === undefined) && (
+                <span className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1.5 rounded-xl flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                  Unscored candidates
+                </span>
+              )}
+
+              {/* Recalculate AI Match Scores Button */}
+              <button
+                onClick={() => handleRescoreApplications(false)}
+                disabled={isRescoring}
+                className="flex items-center gap-1.5 px-3 py-2 bg-[#8b9a6e] hover:bg-[#7a895d] text-white text-xs font-bold rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer"
+                title="Recalculate AI match score for candidates"
+              >
+                <Sparkles className={`w-3.5 h-3.5 ${isRescoring ? "animate-spin" : ""}`} />
+                <span>{isRescoring ? "Calculating Scores..." : "Recalculate AI Scores"}</span>
+              </button>
             </div>
           </div>
+
+          {/* Rescore Notification Banner */}
+          {rescoreMsg && (
+            <div className="flex items-center gap-2 p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-medium">
+              <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{rescoreMsg}</span>
+            </div>
+          )}
 
           {/* Status Filter Tabs & Bulk Actions */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-gray-100">

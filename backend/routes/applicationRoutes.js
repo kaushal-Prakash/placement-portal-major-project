@@ -150,6 +150,101 @@ router.get('/job/:jobId', protect, adminOnly, async (req, res) => {
 });
 
 /**
+ * @route POST /api/applications/job/:jobId/rescore
+ * @desc Recalculate AI match scores for candidates of a job drive
+ * @access Private (Admin only)
+ */
+router.post('/job/:jobId/rescore', protect, adminOnly, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const { force = false } = req.body || {};
+
+    const job = await Job.findById(jobId);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+
+    const jobDescription = `${job.description || ''} ${(job.requirements || job.requiredSkills || []).join(' ')}`.trim();
+
+    const query = { job: jobId };
+    if (!force) {
+      query.$or = [{ matchScore: null }, { matchScore: { $exists: false } }];
+    }
+
+    const applications = await Application.find(query).populate('user');
+    let updatedCount = 0;
+
+    for (const app of applications) {
+      if (!app.user || !app.user.resumeUrl) continue;
+
+      const filePath = getResumeFilePath(app.user.resumeUrl);
+      if (!filePath || !fs.existsSync(filePath)) continue;
+
+      try {
+        const formData = new FormData();
+        formData.append('file', fs.createReadStream(filePath));
+
+        const parseRes = await fetch('http://localhost:8000/api/parse-pdf', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!parseRes.ok) continue;
+        const parseData = await parseRes.json();
+        const resumeText = parseData.parsed_text;
+        if (!resumeText) continue;
+
+        const matchReq = await fetch('http://localhost:8000/api/match', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            resume_text: resumeText,
+            job_description: jobDescription
+          })
+        });
+
+        if (matchReq.ok) {
+          const matchData = await matchReq.json();
+          app.matchScore = matchData.match_score;
+          app.aiFeedback = "Successfully matched using AI";
+          await app.save();
+          updatedCount++;
+        }
+      } catch (err) {
+        console.error(`[Rescore Error for user ${app.user._id}]:`, err.message);
+      }
+    }
+
+    // Return the updated full list of applications for this job
+    const updatedApplications = await Application.find({ job: jobId })
+      .populate({
+        path: 'user',
+        select: 'name email usn cgpa branch batch tenthMarks twelfthMarks activeBacklogs historyOfBacklogs skills resumeUrl isPlaced isBlacklisted',
+        populate: [
+          { path: 'branch', select: 'name code' },
+          { path: 'batch', select: 'year' }
+        ]
+      })
+      .populate({
+        path: 'job',
+        populate: [
+          { path: 'company', select: 'name' },
+          { path: 'allowedBranches', select: 'name code' },
+          { path: 'allowedBatches', select: 'year' }
+        ]
+      })
+      .sort({ matchScore: -1 });
+
+    res.json({
+      message: `Successfully recalculated scores for ${updatedCount} candidate(s).`,
+      updatedCount,
+      applications: updatedApplications
+    });
+  } catch (error) {
+    console.error("Rescore route error:", error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+/**
  * @route GET /api/applications/my
  * @desc Get my applications
  * @access Private (Student only)
